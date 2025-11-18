@@ -62,7 +62,26 @@ Move all data to relational tables:
 - **Benefits**: Full relational queries, ACID transactions
 - **Drawbacks**: Significant rewrite, joins needed for full drama
 
-### Option 3: Keep R2, Improve Locking
+### Option 3: Database Primary, R2 as Cache (Best of Both Worlds)
+Database as source of truth, R2 JSON as materialized view:
+- **PostgreSQL**: Primary storage with full relational schema (tables for dramas, characters, episodes, scenes, assets)
+- **R2**: Cached JSON copy of full drama, updated asynchronously after DB writes
+- **Read flow**: Check R2 cache first → fallback to DB if cache miss → rebuild JSON from DB
+- **Write flow**: Write to DB → queue background task to update R2 cache
+- **Benefits**:
+  - ACID transactions and row-level locking from database
+  - Fast reads from R2 cache (no JOIN overhead)
+  - Complex queries on database
+  - Partial updates in database without reading full drama
+  - Cache can be rebuilt from database if corrupted
+  - Best read performance (cached JSON) + best write consistency (database)
+- **Drawbacks**:
+  - Cache invalidation complexity
+  - Eventual consistency between DB and cache (acceptable for reads)
+  - Need background workers for cache updates
+  - More moving parts (database + cache + workers)
+
+### Option 4: Keep R2, Improve Locking
 Enhance current approach with better conflict resolution:
 - Add ETag-based conditional writes (S3 native)
 - Implement automatic retry with exponential backoff
@@ -106,22 +125,94 @@ Enhance current approach with better conflict resolution:
    - Acceptable: Drama documents are small (<1MB typically)
    - Risk: Bandwidth waste if only need metadata
 
+## Architecture Comparison
+
+| Aspect | Current (R2) | Option 1 (Hybrid Metadata) | Option 2 (Full DB) | Option 3 (DB + R2 Cache) |
+|--------|-------------|---------------------------|-------------------|-------------------------|
+| **Read Performance** | ⭐⭐⭐ Fast | ⭐⭐ Medium (needs JOIN) | ⭐⭐ Medium (needs JOIN) | ⭐⭐⭐⭐ Fastest (cache) |
+| **Write Consistency** | ⭐ Hash-based | ⭐⭐ Metadata only | ⭐⭐⭐⭐ Full ACID | ⭐⭐⭐⭐ Full ACID |
+| **Complex Queries** | ❌ None | ⭐⭐ Metadata only | ⭐⭐⭐⭐ Full queries | ⭐⭐⭐⭐ Full queries |
+| **Partial Updates** | ❌ Full read/write | ❌ Full read/write | ⭐⭐⭐ Efficient | ⭐⭐⭐ Efficient |
+| **Operational Cost** | ⭐⭐⭐⭐ Very low | ⭐⭐⭐ Low | ⭐⭐ Medium | ⭐ Higher (DB + cache) |
+| **Complexity** | ⭐⭐⭐⭐ Simple | ⭐⭐⭐ Low | ⭐⭐ Medium | ⭐ High (cache sync) |
+| **Migration Effort** | N/A | ⭐⭐⭐ Easy (additive) | ⭐ Hard (rewrite) | ⭐ Hard (full rewrite) |
+
 ## Recommendation
 
 **For current stage (MVP/Beta):**
-- ✅ Keep R2 for simplicity and cost
+- ✅ Keep R2 for simplicity and cost (Current approach)
 - ✅ Hash-based locking is sufficient for low-traffic
 - ✅ Document model fits drama structure well
 - ⚠️ Monitor for conflict frequency in production
 
-**For production scale (>10k dramas, multiple concurrent users):**
-- 📊 Consider hybrid approach (R2 storage + PostgreSQL metadata)
-- 🔍 Add metadata table for fast queries: `(id, title, created_at, character_count)`
-- 🔒 Evaluate conflict frequency to decide on full database migration
-- 📈 Profile query performance to identify bottlenecks
+**For growth stage (1k-10k dramas, moderate traffic):**
+- 📊 Add Option 1: R2 storage + PostgreSQL metadata table
+- 🔍 Metadata table for fast queries: `(id, title, created_at, character_count, genre)`
+- ✅ Incremental migration, keeps R2 as source of truth
+- 💰 Cost-effective, complexity manageable
+
+**For production scale (>10k dramas, high concurrent writes):**
+- 🚀 Implement Option 3: Database primary + R2 cache
+- 🔒 ACID transactions eliminate hash-based conflicts
+- ⚡ Best read performance from R2 cache
+- 🔍 Complex queries and analytics on database
+- ⚠️ Requires cache invalidation strategy and background workers
+- 💡 Consider Option 2 (Full DB) if cache complexity not worth it
+
+## Implementation Example: Option 3 (DB Primary + R2 Cache)
+
+### Write Flow
+```python
+async def save_drama(drama: Drama):
+    # 1. Write to database (source of truth)
+    async with db.transaction():
+        await db.dramas.upsert(drama.id, title=drama.title, ...)
+        await db.characters.bulk_upsert(drama.characters)
+        await db.episodes.bulk_upsert(drama.episodes)
+        # ... etc
+
+    # 2. Queue cache update (async, non-blocking)
+    background_tasks.add_task(update_r2_cache, drama.id)
+
+async def update_r2_cache(drama_id: str):
+    # Rebuild JSON from database
+    drama = await rebuild_drama_from_db(drama_id)
+    # Upload to R2
+    await r2.put_object(f"dramas/{drama_id}/drama.json", drama.json())
+```
+
+### Read Flow
+```python
+async def get_drama(drama_id: str) -> Drama:
+    # 1. Try R2 cache first
+    cached = await r2.get_object(f"dramas/{drama_id}/drama.json")
+    if cached:
+        return Drama.parse_raw(cached)
+
+    # 2. Cache miss - rebuild from database
+    drama = await rebuild_drama_from_db(drama_id)
+
+    # 3. Update cache for next time (fire and forget)
+    background_tasks.add_task(update_r2_cache, drama_id)
+
+    return drama
+```
+
+### Benefits
+- **Writes**: ACID transactions, no hash conflicts, partial updates
+- **Reads**: Fast from R2 cache, fallback to DB if needed
+- **Cache invalidation**: Simple - just delete R2 object on write
+- **Cache rebuild**: Can rebuild entire cache from DB if corrupted
 
 ## Implementation Checklist (if migrating)
 
+### Option 1 (Metadata Only)
+- [ ] Set up PostgreSQL instance
+- [ ] Create single table: `drama_metadata(id, title, premise, created_at, character_count)`
+- [ ] Add background task to sync metadata after R2 writes
+- [ ] Add query endpoints using metadata table
+
+### Option 2 or 3 (Full Database)
 - [ ] Set up PostgreSQL instance (RDS, Render, Railway)
 - [ ] Define database schema (tables, indexes, constraints)
 - [ ] Add SQLAlchemy ORM models
@@ -132,6 +223,13 @@ Enhance current approach with better conflict resolution:
 - [ ] Add database backups
 - [ ] Monitor query performance
 - [ ] Update tests for database layer
+
+### Option 3 Specific (Cache Layer)
+- [ ] Implement cache invalidation strategy
+- [ ] Add background workers for cache updates
+- [ ] Add cache rebuild endpoint for manual refresh
+- [ ] Monitor cache hit rate
+- [ ] Add cache warming strategy (pre-populate popular dramas)
 
 ---
 
