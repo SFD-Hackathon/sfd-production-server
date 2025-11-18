@@ -2,10 +2,16 @@
 
 import os
 import json
+import hashlib
 import boto3
 from botocore.config import Config
 from typing import Optional, List, Dict, Any
 from app.models import Drama, Asset
+
+
+class StorageConflictError(Exception):
+    """Raised when attempting to save a drama that has been modified by another process"""
+    pass
 
 
 class R2Storage:
@@ -41,14 +47,50 @@ class R2Storage:
         """Get S3 key for drama object"""
         return f"dramas/{drama_id}/drama.json"
 
-    async def save_drama(self, drama: Drama) -> None:
+    def _compute_drama_hash(self, drama: Drama) -> str:
         """
-        Save drama to R2 storage
+        Compute hash of drama content for optimistic locking
+
+        Args:
+            drama: Drama object to hash
+
+        Returns:
+            SHA256 hash of drama JSON content
+        """
+        # Use compact JSON (no indent) for consistent hashing
+        drama_json = drama.model_dump_json()
+        return hashlib.sha256(drama_json.encode()).hexdigest()
+
+    async def save_drama(self, drama: Drama, expected_hash: Optional[str] = None) -> None:
+        """
+        Save drama to R2 storage with optional optimistic locking
 
         Args:
             drama: Drama object to save
+            expected_hash: Expected hash of current stored drama (for conflict detection)
+
+        Raises:
+            StorageConflictError: If expected_hash is provided and doesn't match current stored version
         """
         key = self._get_drama_key(drama.id)
+
+        # Optimistic locking: verify hash if provided
+        if expected_hash is not None:
+            try:
+                current_drama = await self.get_drama(drama.id)
+                if current_drama:
+                    current_hash = self._compute_drama_hash(current_drama)
+                    if current_hash != expected_hash:
+                        raise StorageConflictError(
+                            f"Drama {drama.id} was modified by another process. "
+                            f"Expected hash {expected_hash[:8]}..., got {current_hash[:8]}..."
+                        )
+            except StorageConflictError:
+                raise
+            except Exception as e:
+                # If we can't verify hash, log warning but proceed
+                print(f"Warning: Could not verify drama hash: {e}")
+
         drama_json = drama.model_dump_json(indent=2)
 
         self.s3_client.put_object(
@@ -182,44 +224,69 @@ class R2Storage:
         except Exception:
             return False
 
-    async def add_asset_to_character(self, drama_id: str, character_id: str, asset: Asset) -> None:
+    async def add_asset_to_character(
+        self, drama_id: str, character_id: str, asset: Asset, max_retries: int = 3
+    ) -> None:
         """
-        Safely add an asset to a character by reloading latest drama
+        Safely add an asset to a character with optimistic locking
 
-        This prevents lost updates when concurrent modifications occur.
-        Reloads the drama, adds the asset if it doesn't already exist, then saves.
+        This prevents lost updates when concurrent modifications occur by using
+        hash-based conflict detection. Will retry on conflicts up to max_retries times.
 
         Args:
             drama_id: ID of the drama
             character_id: ID of the character
             asset: Asset to add to character
+            max_retries: Maximum number of retry attempts on conflict (default: 3)
 
         Raises:
             Exception: If drama or character not found
+            StorageConflictError: If unable to save after max_retries attempts
         """
-        # Reload fresh drama
-        drama = await self.get_drama(drama_id)
-        if not drama:
-            raise Exception(f"Drama {drama_id} not found")
+        for attempt in range(max_retries):
+            try:
+                # Get fresh drama and compute hash
+                drama = await self.get_drama(drama_id)
+                if not drama:
+                    raise Exception(f"Drama {drama_id} not found")
 
-        # Find character
-        character = None
-        for char in drama.characters:
-            if char.id == character_id:
-                character = char
-                break
+                drama_hash = self._compute_drama_hash(drama)
 
-        if not character:
-            raise Exception(f"Character {character_id} not found in drama {drama_id}")
+                # Find character
+                character = None
+                for char in drama.characters:
+                    if char.id == character_id:
+                        character = char
+                        break
 
-        # Check if asset already exists
-        existing_ids = {a.id for a in character.assets}
-        if asset.id not in existing_ids:
-            character.assets.append(asset)
+                if not character:
+                    raise Exception(f"Character {character_id} not found in drama {drama_id}")
 
-        # Save updated drama
-        await self.save_drama(drama)
+                # Check if asset already exists
+                existing_ids = {a.id for a in character.assets}
+                if asset.id not in existing_ids:
+                    character.assets.append(asset)
+                else:
+                    # Asset already exists, no need to save
+                    return
+
+                # Save with optimistic locking
+                await self.save_drama(drama, expected_hash=drama_hash)
+
+                # Success - exit retry loop
+                return
+
+            except StorageConflictError as e:
+                if attempt == max_retries - 1:
+                    # Final attempt failed, raise the error
+                    raise
+                # Conflict detected, retry with fresh data
+                print(f"Conflict detected on attempt {attempt + 1}, retrying... ({e})")
+                continue
 
 
 # Global storage instance
 storage = R2Storage()
+
+# Export for use by other modules
+__all__ = ["storage", "R2Storage", "StorageConflictError"]
