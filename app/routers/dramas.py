@@ -82,57 +82,18 @@ async def process_drama_generation(job_id: str, drama_id: str, premise: str):
         # Update job status to completed
         job_manager.update_job_status(job_id, JobStatus.completed, result={"dramaId": drama_id})
 
-        # Create a separate job for video generation (non-blocking)
-        video_job_id = generate_id("job")
-        job_manager.create_job(video_job_id, drama_id, JobType.generate_video)
-        print(f"✓ Queued video generation job: {video_job_id}")
+        # Create separate jobs for each character's audition video (non-blocking)
+        video_job_ids = []
+        for character in drama.characters:
+            if character.url:  # Only create job if character has image
+                video_job_id = generate_id("job")
+                job_manager.create_job(video_job_id, drama_id, JobType.generate_video)
+                video_job_ids.append(video_job_id)
 
-        # Queue video generation as a separate background task
-        # Note: We can't use background_tasks here since this is already a background task
-        # Instead, we'll create the task directly
-        asyncio.create_task(process_character_videos(video_job_id, drama_id))
+                # Queue each character video as a separate background task
+                asyncio.create_task(process_character_audition_video(video_job_id, drama_id, character.id))
 
-    except Exception as e:
-        # Update job status to failed
-        job_manager.update_job_status(job_id, JobStatus.failed, error=str(e))
-
-
-async def process_character_videos(job_id: str, drama_id: str):
-    """Background task for character video generation"""
-    try:
-        # Update job status to processing
-        job_manager.update_job_status(job_id, JobStatus.processing)
-
-        # Get drama
-        drama = await storage.get_drama(drama_id)
-        if not drama:
-            raise Exception(f"Drama {drama_id} not found")
-
-        # Generate character audition videos for all characters in parallel
-        ai_service = get_ai_service()
-
-        async def generate_char_video(character):
-            # Only generate video if character has an image (to use as reference)
-            if character.url:
-                try:
-                    video_url = await ai_service.generate_character_audition_video(
-                        drama_id=drama_id,
-                        character=character,
-                    )
-                    print(f"✓ Generated audition video for character: {character.name}")
-                except Exception as video_error:
-                    print(f"Warning: Failed to generate video for character {character.id}: {video_error}")
-            else:
-                print(f"Skipping video generation for {character.name} (no image available)")
-
-        # Generate all character videos concurrently
-        await asyncio.gather(*[generate_char_video(char) for char in drama.characters])
-
-        # Save updated drama with character videos
-        await storage.save_drama(drama)
-
-        # Update job status to completed
-        job_manager.update_job_status(job_id, JobStatus.completed, result={"dramaId": drama_id, "videosGenerated": len([c for c in drama.characters if c.url])})
+        print(f"✓ Queued {len(video_job_ids)} character audition video jobs")
 
     except Exception as e:
         # Update job status to failed
