@@ -14,6 +14,7 @@ from app.models import (
     Character,
     Asset,
 )
+from app.storage import storage
 
 
 class AIService:
@@ -359,24 +360,22 @@ Note: This critique focuses on the drama, character, and episode levels. Scene-l
             traceback.print_exc()
             raise
 
-    def generate_image(
+    def generate_character_image(
         self,
-        prompt: str,
+        drama_id: str,
+        character: Character,
         references: Optional[List[str]] = None,
-        asset_id: Optional[str] = None,
     ) -> str:
         """
-        Generate an image using Gemini API
+        Generate front half-body character image using Gemini API and upload to R2
 
         Args:
-            prompt: Text prompt for image generation
+            drama_id: ID of the drama
+            character: Character object with id, description, gender, etc.
             references: Optional list of additional reference image URLs
-            asset_id: Optional asset ID for context
 
         Returns:
-            Image URL (markdown format) or base64 data URI
-
-        Note: Always generates 9:16 aspect ratio images with a standard reference
+            Public R2 URL of the uploaded character image
         """
         if not self.gemini_api_key or not self.gemini_api_base:
             raise ValueError(
@@ -387,8 +386,11 @@ Note: This critique focuses on the drama, character, and episode levels. Scene-l
         aspect_ratio = "9:16"
         aspect_directive = f"ASPECT RATIO MUST BE {aspect_ratio} (width:height)"
 
+        # Build character-focused prompt using character object
+        character_prompt = f"Front half-body portrait of a {character.gender} character: {character.description}. Show from waist up, facing forward, clear facial features, expressive eyes."
+
         # Put aspect ratio requirement at the beginning AND end for emphasis
-        full_prompt = f"CRITICAL REQUIREMENT: {aspect_directive}\n\nIMAGE CONTENT: {prompt}\n\nSTYLE: Anime style, cartoon illustration, vibrant colors, clean lines.\n\nREMINDER: {aspect_directive}"
+        full_prompt = f"CRITICAL REQUIREMENT: {aspect_directive}\n\nCHARACTER IMAGE: {character_prompt}\n\nSTYLE: Anime style, cartoon illustration, vibrant colors, clean lines, detailed character design.\n\nREMINDER: {aspect_directive}"
 
         # Build request content with text prompt
         content = [{"type": "text", "text": full_prompt}]
@@ -427,17 +429,25 @@ Note: This critique focuses on the drama, character, and episode levels. Scene-l
         # Extract image from response
         message = result["choices"][0]["message"]["content"]
 
-        # Check for markdown image format
-        md_match = re.search(r"!\[.*?\]\((https?://[^\)]+)\)", message)
-        if md_match:
-            return md_match.group(1)
-
-        # Check for base64 data URI
+        # Check for base64 data URI first (most common)
         data_match = re.search(
             r"(data:image/[^;]+;base64,[A-Za-z0-9+/=]+)", message
         )
         if data_match:
-            return data_match.group(1)
+            base64_data = data_match.group(1)
+            # Extract base64 content
+            header, encoded = base64_data.split(",", 1)
+            image_bytes = base64.b64decode(encoded)
+
+            # Upload to R2
+            public_url = storage.upload_image(image_bytes, drama_id, character.id)
+            return public_url
+
+        # Check for markdown image format
+        md_match = re.search(r"!\[.*?\]\((https?://[^\)]+)\)", message)
+        if md_match:
+            # Image is already a URL, return it directly
+            return md_match.group(1)
 
         raise Exception("Could not extract image from response")
 

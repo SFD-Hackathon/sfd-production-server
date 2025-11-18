@@ -18,6 +18,7 @@ class R2Storage:
         access_key_id = os.getenv("R2_ACCESS_KEY_ID")
         secret_access_key = os.getenv("R2_SECRET_ACCESS_KEY")
         self.bucket_name = os.getenv("R2_BUCKET", "sfd-production")
+        self.public_url_base = os.getenv("R2_PUBLIC_URL", "https://pub-82a9c3c68d1a421f8e31796087e04132.r2.dev")
 
         # Construct R2 endpoint
         if account_id:
@@ -137,6 +138,30 @@ class R2Storage:
         except Exception as e:
             print(f"Error listing dramas: {e}")
             return [], None
+
+    def upload_image(self, image_data: bytes, drama_id: str, character_id: str) -> str:
+        """
+        Upload character image to R2 storage
+
+        Args:
+            image_data: Image binary data
+            drama_id: ID of the drama
+            character_id: ID of the character
+
+        Returns:
+            Public URL of the uploaded image
+        """
+        key = f"dramas/{drama_id}/characters/{character_id}.png"
+
+        self.s3_client.put_object(
+            Bucket=self.bucket_name,
+            Key=key,
+            Body=image_data,
+            ContentType="image/png",
+        )
+
+        # Return public URL
+        return f"{self.public_url_base}/{key}"
 
     async def drama_exists(self, drama_id: str) -> bool:
         """
