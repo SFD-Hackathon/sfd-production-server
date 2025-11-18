@@ -452,31 +452,15 @@ async def process_character_audition_video(job_id: str, drama_id: str, character
         if not character.url:
             raise Exception(f"Character {character_id} does not have an image. Generate character image first.")
 
-        # Generate audition video
+        # Generate audition video (modifies character.assets in-place)
         ai_service = get_ai_service()
-
-        # Build video asset before generation
-        duration = 10
-        audition_prompt = f"Character audition video for {character.name}: {character.description}. Voice: {character.voice_description}. Show the character in a dynamic pose, turning slightly and making expressive gestures that showcase their personality and vocal style. Anime style, smooth animation."
-
-        # Generate video and get URL
         video_url = await ai_service.generate_character_audition_video(
             drama_id=drama_id,
             character=character,
         )
 
-        # Find the video asset that was created
-        video_asset = None
-        for asset in character.assets:
-            if asset.kind == AssetKind.video and asset.metadata and asset.metadata.get("type") == "character_audition":
-                video_asset = asset
-                break
-
-        if not video_asset:
-            raise Exception("Video asset was not created by generate_character_audition_video")
-
-        # Atomically add the asset to the character in storage
-        await storage.add_character_asset(drama_id, character_id, video_asset)
+        # Save updated drama
+        await storage.save_drama(drama)
 
         # Update job status to completed
         job_manager.update_job_status(

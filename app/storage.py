@@ -3,7 +3,6 @@
 import os
 import json
 import boto3
-import asyncio
 from botocore.config import Config
 from typing import Optional, List, Dict, Any
 from app.models import Drama
@@ -14,8 +13,6 @@ class R2Storage:
 
     def __init__(self):
         """Initialize R2 storage client"""
-        # Lock for preventing concurrent writes to same drama
-        self._drama_locks: Dict[str, asyncio.Lock] = {}
         # R2 credentials from environment
         account_id = os.getenv("R2_ACCOUNT_ID")
         access_key_id = os.getenv("R2_ACCESS_KEY_ID")
@@ -44,67 +41,19 @@ class R2Storage:
         """Get S3 key for drama object"""
         return f"dramas/{drama_id}/drama.json"
 
-    def _get_drama_lock(self, drama_id: str) -> asyncio.Lock:
-        """Get or create a lock for a specific drama"""
-        if drama_id not in self._drama_locks:
-            self._drama_locks[drama_id] = asyncio.Lock()
-        return self._drama_locks[drama_id]
-
     async def save_drama(self, drama: Drama) -> None:
         """
         Save drama to R2 storage
-        Uses per-drama locking to prevent race conditions from concurrent writes.
 
         Args:
             drama: Drama object to save
         """
-        # Acquire lock for this specific drama to prevent concurrent writes
-        lock = self._get_drama_lock(drama.id)
-        async with lock:
-            key = self._get_drama_key(drama.id)
-            drama_json = drama.model_dump_json(indent=2)
+        key = self._get_drama_key(drama.id)
+        drama_json = drama.model_dump_json(indent=2)
 
-            self.s3_client.put_object(
-                Bucket=self.bucket_name, Key=key, Body=drama_json, ContentType="application/json"
-            )
-
-    async def add_character_asset(self, drama_id: str, character_id: str, asset) -> None:
-        """
-        Atomically add an asset to a character
-        Uses locking to prevent race conditions from concurrent updates.
-
-        Args:
-            drama_id: ID of the drama
-            character_id: ID of the character
-            asset: Asset object to add to the character
-        """
-        lock = self._get_drama_lock(drama_id)
-        async with lock:
-            # Load latest drama
-            drama = await self.get_drama(drama_id)
-            if not drama:
-                raise Exception(f"Drama {drama_id} not found")
-
-            # Find character and add asset
-            character_found = False
-            for char in drama.characters:
-                if char.id == character_id:
-                    # Check if asset already exists
-                    existing_ids = {a.id for a in char.assets}
-                    if asset.id not in existing_ids:
-                        char.assets.append(asset)
-                    character_found = True
-                    break
-
-            if not character_found:
-                raise Exception(f"Character {character_id} not found in drama {drama_id}")
-
-            # Save updated drama
-            key = self._get_drama_key(drama_id)
-            drama_json = drama.model_dump_json(indent=2)
-            self.s3_client.put_object(
-                Bucket=self.bucket_name, Key=key, Body=drama_json, ContentType="application/json"
-            )
+        self.s3_client.put_object(
+            Bucket=self.bucket_name, Key=key, Body=drama_json, ContentType="application/json"
+        )
 
     async def get_drama(self, drama_id: str) -> Optional[Drama]:
         """
