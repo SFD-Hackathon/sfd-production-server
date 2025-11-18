@@ -113,13 +113,13 @@ Remember:
 
         try:
             # Call GPT-5 with structured output
+            # Note: GPT-5 only supports temperature=1 (default)
             response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
-                temperature=0.8,
                 max_completion_tokens=32000,
                 response_format={"type": "json_object"},
             )
@@ -170,13 +170,13 @@ Instructions:
 
         try:
             # Call GPT-5
+            # Note: GPT-5 only supports temperature=1 (default)
             response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
-                temperature=0.8,
                 max_completion_tokens=32000,
                 response_format={"type": "json_object"},
             )
