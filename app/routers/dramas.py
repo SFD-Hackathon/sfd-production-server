@@ -19,6 +19,8 @@ from app.models import (
     CriticResponse,
     JobType,
     JobStatus,
+    Asset,
+    AssetKind,
 )
 from app.storage import storage
 from app.ai_service import get_ai_service
@@ -461,4 +463,160 @@ async def critique_drama(
         jobId=job_id,
         status=JobStatus.pending,
         message=f"Drama critique job queued. Check status and retrieve feedback at: https://api.shortformdramas.com/dramas/{drama_id}/jobs/{job_id}",
+    )
+
+
+async def process_character_audition_video(job_id: str, drama_id: str, character_id: str):
+    """Background task for generating a single character audition video"""
+    try:
+        # Update job status to processing
+        job_manager.update_job_status(job_id, JobStatus.processing)
+
+        # Get drama
+        drama = await storage.get_drama(drama_id)
+        if not drama:
+            raise Exception(f"Drama {drama_id} not found")
+
+        # Find character
+        character = None
+        for char in drama.characters:
+            if char.id == character_id:
+                character = char
+                break
+
+        if not character:
+            raise Exception(f"Character {character_id} not found in drama {drama_id}")
+
+        # Check if character has image
+        if not character.url:
+            raise Exception(f"Character {character_id} does not have an image. Generate character image first.")
+
+        # Generate audition video
+        ai_service = get_ai_service()
+        video_url = await ai_service.generate_character_audition_video(
+            drama_id=drama_id,
+            character=character,
+        )
+
+        # Save updated drama
+        await storage.save_drama(drama)
+
+        # Update job status to completed
+        job_manager.update_job_status(
+            job_id,
+            JobStatus.completed,
+            result={"dramaId": drama_id, "characterId": character_id, "videoUrl": video_url}
+        )
+
+    except Exception as e:
+        # Update job status to failed
+        job_manager.update_job_status(job_id, JobStatus.failed, error=str(e))
+
+
+@router.get("/{drama_id}/characters/{character_id}/audition", response_model=Asset)
+async def get_character_audition_video(drama_id: str, character_id: str):
+    """
+    Get character audition video asset
+
+    Retrieve the audition video asset for a specific character.
+    Returns 404 if the character or audition video doesn't exist.
+    """
+    # Get drama
+    drama = await storage.get_drama(drama_id)
+    if not drama:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "Drama not found", "message": f"Drama {drama_id} not found"},
+        )
+
+    # Find character
+    character = None
+    for char in drama.characters:
+        if char.id == character_id:
+            character = char
+            break
+
+    if not character:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "Character not found", "message": f"Character {character_id} not found"},
+        )
+
+    # Find audition video asset
+    audition_asset = None
+    for asset in character.assets:
+        if asset.kind == AssetKind.video and asset.metadata and asset.metadata.get("type") == "character_audition":
+            audition_asset = asset
+            break
+
+    if not audition_asset:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "Audition video not found", "message": f"Audition video for character {character_id} not found"},
+        )
+
+    return audition_asset
+
+
+@router.post("/{drama_id}/characters/{character_id}/audition", response_model=JobResponse, status_code=status.HTTP_202_ACCEPTED)
+async def generate_character_audition_video(
+    drama_id: str,
+    character_id: str,
+    background_tasks: BackgroundTasks,
+):
+    """
+    Generate character audition video
+
+    Queue an async job to generate a 10-second audition video for a specific character.
+    The character must have an image already generated (used as reference for the video).
+
+    This endpoint can be used to:
+    - Generate audition video for a character that doesn't have one
+    - Regenerate audition video for a character (replaces existing video)
+
+    Returns immediately with a job ID. Use the job status endpoint to check completion.
+    """
+    # Check if drama exists
+    drama = await storage.get_drama(drama_id)
+    if not drama:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "Drama not found", "message": f"Drama {drama_id} not found"},
+        )
+
+    # Find character
+    character = None
+    for char in drama.characters:
+        if char.id == character_id:
+            character = char
+            break
+
+    if not character:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "Character not found", "message": f"Character {character_id} not found"},
+        )
+
+    # Check if character has image
+    if not character.url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": "Character image required", "message": f"Character {character_id} must have an image before generating audition video"},
+        )
+
+    # Generate job ID
+    job_id = generate_id("job")
+
+    # Create job
+    job_manager.create_job(job_id, drama_id, JobType.generate_video)
+
+    # Queue background task
+    background_tasks.add_task(process_character_audition_video, job_id, drama_id, character_id)
+
+    # Return response
+    return JobResponse(
+        dramaId=drama_id,
+        jobId=job_id,
+        status=JobStatus.pending,
+        message=f"Character audition video generation queued. Check status at: https://api.shortformdramas.com/dramas/{drama_id}/jobs/{job_id}",
     )

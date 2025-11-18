@@ -626,8 +626,8 @@ IMPORTANT: Use the EXACT same dimensions and aspect ratio as the reference image
         # Character audition videos are always 10 seconds
         duration = 10
 
-        # Build character audition prompt
-        audition_prompt = f"Character audition video for {character.name}: {character.description}. Show the character in a dynamic pose, turning slightly and making expressive gestures that showcase their personality. Anime style, smooth animation."
+        # Build character audition prompt including voice description
+        audition_prompt = f"Character audition video for {character.name}: {character.description}. Voice: {character.voice_description}. Show the character in a dynamic pose, turning slightly and making expressive gestures that showcase their personality and vocal style. Anime style, smooth animation."
 
         # Prepare API request
         headers = {
