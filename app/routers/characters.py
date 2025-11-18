@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, status
 
 from app.models import Character, CharacterUpdate, CharacterListResponse
 from app.storage import storage
+from app.ai_service import get_ai_service
 
 router = APIRouter()
 
@@ -70,25 +71,53 @@ async def update_character(
     return character
 
 
-@router.post("/{drama_id}/characters/{character_id}/generate", status_code=status.HTTP_202_ACCEPTED)
-async def generate_character_assets(drama_id: str, character_id: str):
+@router.post("/{drama_id}/characters/{character_id}/generate", response_model=Character)
+async def generate_character_image(drama_id: str, character_id: str):
     """
-    Generate all assets for a character
+    Generate character image using Gemini AI
 
-    Triggers asset generation jobs for all assets associated with this character.
+    Generates a front half-body portrait for the character based on their description
+    and gender, uploads to R2 storage, and updates the character's url field.
 
-    **Status:** Not implemented yet - placeholder for future asset generation
+    Returns the updated character with the image URL.
     """
-    # TODO: Implement character asset generation logic
-    # This will:
-    # 1. Get all assets for this character
-    # 2. For each asset without a URL, create a generation job
-    # 3. Queue jobs for character images/videos
-    # 4. Return list of created job IDs
+    # Get drama
+    drama = await storage.get_drama(drama_id)
+    if not drama:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "Drama not found", "message": f"Drama {drama_id} not found"},
+        )
 
-    return {
-        "message": "Character asset generation not implemented yet",
-        "dramaId": drama_id,
-        "characterId": character_id,
-        "status": "not_implemented"
-    }
+    # Find character
+    character = next((c for c in drama.characters if c.id == character_id), None)
+    if not character:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "Character not found", "message": f"Character {character_id} not found"},
+        )
+
+    # Generate character image using AI service
+    try:
+        ai_service = get_ai_service()
+        image_url = ai_service.generate_character_image(
+            drama_id=drama_id,
+            character=character,
+        )
+
+        # Update character's url field
+        character.url = image_url
+
+        # Save updated drama
+        await storage.save_drama(drama)
+
+        return character
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": "Image generation failed",
+                "message": str(e)
+            }
+        )
