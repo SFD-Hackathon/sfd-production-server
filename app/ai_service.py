@@ -605,16 +605,15 @@ IMPORTANT: Use the EXACT same dimensions and aspect ratio as the reference image
         self,
         drama_id: str,
         character: Character,
-        duration: int = 10,
     ) -> str:
         """
         Generate character audition video using Sora API
+        Character audition videos are always 10 seconds long.
         Includes retry logic with up to 2 retries (3 total attempts)
 
         Args:
             drama_id: ID of the drama
             character: Character object with description, image URL, etc.
-            duration: Video duration in seconds (must be 10 or 15, default: 10)
 
         Returns:
             Public R2 URL of the uploaded video
@@ -624,9 +623,8 @@ IMPORTANT: Use the EXACT same dimensions and aspect ratio as the reference image
                 "SORA_API_KEY and SORA_API_BASE environment variables are required"
             )
 
-        # Validate duration (Sora only supports 10 or 15 seconds)
-        if duration not in [10, 15]:
-            raise ValueError(f"Duration must be 10 or 15 seconds, got {duration}")
+        # Character audition videos are always 10 seconds
+        duration = 10
 
         # Build character audition prompt
         audition_prompt = f"Character audition video for {character.name}: {character.description}. Show the character in a dynamic pose, turning slightly and making expressive gestures that showcase their personality. Anime style, smooth animation."

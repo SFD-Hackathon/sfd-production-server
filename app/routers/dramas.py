@@ -116,7 +116,6 @@ async def process_character_videos(job_id: str, drama_id: str):
                     video_url = await ai_service.generate_character_audition_video(
                         drama_id=drama_id,
                         character=character,
-                        duration=10,  # Sora supports 10 or 15 seconds only
                     )
                     print(f"✓ Generated audition video for character: {character.name}")
                 except Exception as video_error:
