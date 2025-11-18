@@ -68,6 +68,44 @@ class R2Storage:
                 Bucket=self.bucket_name, Key=key, Body=drama_json, ContentType="application/json"
             )
 
+    async def add_character_asset(self, drama_id: str, character_id: str, asset) -> None:
+        """
+        Atomically add an asset to a character
+        Uses locking to prevent race conditions from concurrent updates.
+
+        Args:
+            drama_id: ID of the drama
+            character_id: ID of the character
+            asset: Asset object to add to the character
+        """
+        lock = self._get_drama_lock(drama_id)
+        async with lock:
+            # Load latest drama
+            drama = await self.get_drama(drama_id)
+            if not drama:
+                raise Exception(f"Drama {drama_id} not found")
+
+            # Find character and add asset
+            character_found = False
+            for char in drama.characters:
+                if char.id == character_id:
+                    # Check if asset already exists
+                    existing_ids = {a.id for a in char.assets}
+                    if asset.id not in existing_ids:
+                        char.assets.append(asset)
+                    character_found = True
+                    break
+
+            if not character_found:
+                raise Exception(f"Character {character_id} not found in drama {drama_id}")
+
+            # Save updated drama
+            key = self._get_drama_key(drama_id)
+            drama_json = drama.model_dump_json(indent=2)
+            self.s3_client.put_object(
+                Bucket=self.bucket_name, Key=key, Body=drama_json, ContentType="application/json"
+            )
+
     async def get_drama(self, drama_id: str) -> Optional[Drama]:
         """
         Retrieve drama from R2 storage

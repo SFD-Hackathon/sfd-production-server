@@ -433,64 +433,50 @@ async def process_character_audition_video(job_id: str, drama_id: str, character
         # Update job status to processing
         job_manager.update_job_status(job_id, JobStatus.processing)
 
-        # Acquire lock for read-modify-write cycle to prevent race conditions
-        lock = storage._get_drama_lock(drama_id)
-        async with lock:
-            # Get drama (inside lock to ensure read-modify-write atomicity)
-            drama = await storage.get_drama(drama_id)
-            if not drama:
-                raise Exception(f"Drama {drama_id} not found")
+        # Get drama and find character
+        drama = await storage.get_drama(drama_id)
+        if not drama:
+            raise Exception(f"Drama {drama_id} not found")
 
-            # Find character
-            character = None
-            for char in drama.characters:
-                if char.id == character_id:
-                    character = char
-                    break
+        # Find character
+        character = None
+        for char in drama.characters:
+            if char.id == character_id:
+                character = char
+                break
 
-            if not character:
-                raise Exception(f"Character {character_id} not found in drama {drama_id}")
+        if not character:
+            raise Exception(f"Character {character_id} not found in drama {drama_id}")
 
-            # Check if character has image
-            if not character.url:
-                raise Exception(f"Character {character_id} does not have an image. Generate character image first.")
+        # Check if character has image
+        if not character.url:
+            raise Exception(f"Character {character_id} does not have an image. Generate character image first.")
 
-        # Generate audition video (outside lock - this is the slow part)
-        # Note: This modifies the character object's assets in-place
+        # Generate audition video
         ai_service = get_ai_service()
+
+        # Build video asset before generation
+        duration = 10
+        audition_prompt = f"Character audition video for {character.name}: {character.description}. Voice: {character.voice_description}. Show the character in a dynamic pose, turning slightly and making expressive gestures that showcase their personality and vocal style. Anime style, smooth animation."
+
+        # Generate video and get URL
         video_url = await ai_service.generate_character_audition_video(
             drama_id=drama_id,
             character=character,
         )
 
-        # Re-acquire lock to safely merge changes back
-        async with lock:
-            # Reload drama to get latest version
-            latest_drama = await storage.get_drama(drama_id)
-            if not latest_drama:
-                raise Exception(f"Drama {drama_id} not found")
+        # Find the video asset that was created
+        video_asset = None
+        for asset in character.assets:
+            if asset.kind == AssetKind.video and asset.metadata and asset.metadata.get("type") == "character_audition":
+                video_asset = asset
+                break
 
-            # Find the character in the latest drama and merge video assets
-            for char in latest_drama.characters:
-                if char.id == character_id:
-                    # Copy over the video assets we just generated
-                    for asset in character.assets:
-                        # Only add video assets that don't already exist
-                        if asset.kind == AssetKind.video:
-                            existing_ids = {a.id for a in char.assets}
-                            if asset.id not in existing_ids:
-                                char.assets.append(asset)
-                    break
+        if not video_asset:
+            raise Exception("Video asset was not created by generate_character_audition_video")
 
-            # Save the merged drama (lock already held)
-            key = storage._get_drama_key(latest_drama.id)
-            drama_json = latest_drama.model_dump_json(indent=2)
-            storage.s3_client.put_object(
-                Bucket=storage.bucket_name,
-                Key=key,
-                Body=drama_json,
-                ContentType="application/json"
-            )
+        # Atomically add the asset to the character in storage
+        await storage.add_character_asset(drama_id, character_id, video_asset)
 
         # Update job status to completed
         job_manager.update_job_status(
