@@ -5,3 +5,4 @@ python-multipart==0.0.18
 openai==1.57.2
 boto3==1.35.78
 python-dotenv==1.0.1
+requests==2.32.3

@@ -1,7 +1,10 @@
-"""AI service for drama generation using OpenAI GPT-5"""
+"""AI service for drama generation using OpenAI GPT-5 and image generation using Gemini"""
 
 import os
-from typing import Optional
+import re
+import base64
+import requests
+from typing import Optional, List
 from openai import AsyncOpenAI
 from app.models import (
     Drama,
@@ -14,10 +17,11 @@ from app.models import (
 
 
 class AIService:
-    """Service for AI-powered drama generation"""
+    """Service for AI-powered drama generation and image generation"""
 
     def __init__(self):
-        """Initialize AI service with OpenAI client"""
+        """Initialize AI service with OpenAI client and Gemini configuration"""
+        # OpenAI/GPT configuration
         api_key = os.getenv("OPENAI_API_KEY")
         api_base = os.getenv("OPENAI_API_BASE")
         self.model = os.getenv("GPT_MODEL", "gpt-5")
@@ -28,6 +32,11 @@ class AIService:
             client_kwargs["base_url"] = api_base
 
         self.client = AsyncOpenAI(**client_kwargs)
+
+        # Gemini configuration for image generation
+        self.gemini_api_key = os.getenv("GEMINI_API_KEY")
+        self.gemini_api_base = os.getenv("GEMINI_API_BASE")
+        self.gemini_model = "gemini-2.5-flash-image"
 
     async def generate_drama(self, premise: str, drama_id: str) -> Drama:
         """
@@ -349,6 +358,81 @@ Note: This critique focuses on the drama, character, and episode levels. Scene-l
             import traceback
             traceback.print_exc()
             raise
+
+    def generate_image(
+        self,
+        prompt: str,
+        aspect_ratio: str = "16:9",
+        references: Optional[List[str]] = None,
+        asset_id: Optional[str] = None,
+    ) -> str:
+        """
+        Generate an image using Gemini API
+
+        Args:
+            prompt: Text prompt for image generation
+            aspect_ratio: Aspect ratio (e.g., "16:9", "9:16", "1:1")
+            references: Optional list of reference image URLs
+            asset_id: Optional asset ID for context
+
+        Returns:
+            Image URL (markdown format) or base64 data URI
+        """
+        if not self.gemini_api_key or not self.gemini_api_base:
+            raise ValueError(
+                "GEMINI_API_KEY and GEMINI_API_BASE environment variables are required"
+            )
+
+        # Create aspect ratio directive
+        aspect_directive = f"ASPECT RATIO MUST BE {aspect_ratio} (width:height)"
+
+        # Put aspect ratio requirement at the beginning AND end for emphasis
+        full_prompt = f"CRITICAL REQUIREMENT: {aspect_directive}\n\nIMAGE CONTENT: {prompt}\n\nSTYLE: Anime style, cartoon illustration, vibrant colors, clean lines.\n\nREMINDER: {aspect_directive}"
+
+        # Build request content
+        content = [{"type": "text", "text": full_prompt}]
+        if references:
+            for ref in references:
+                content.append({"type": "image_url", "image_url": {"url": ref}})
+
+        # Build API request payload
+        payload = {
+            "model": self.gemini_model,
+            "messages": [{"role": "user", "content": content}],
+            "stream": False,
+        }
+
+        headers = {
+            "Authorization": f"Bearer {self.gemini_api_key}",
+            "Content-Type": "application/json",
+        }
+
+        # Make API request
+        response = requests.post(
+            f"{self.gemini_api_base}/v1/chat/completions",
+            headers=headers,
+            json=payload,
+            timeout=60,
+        )
+        response.raise_for_status()
+        result = response.json()
+
+        # Extract image from response
+        message = result["choices"][0]["message"]["content"]
+
+        # Check for markdown image format
+        md_match = re.search(r"!\[.*?\]\((https?://[^\)]+)\)", message)
+        if md_match:
+            return md_match.group(1)
+
+        # Check for base64 data URI
+        data_match = re.search(
+            r"(data:image/[^;]+;base64,[A-Za-z0-9+/=]+)", message
+        )
+        if data_match:
+            return data_match.group(1)
+
+        raise Exception("Could not extract image from response")
 
 
 # Global AI service instance (lazy-loaded)
