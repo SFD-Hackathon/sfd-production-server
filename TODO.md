@@ -204,6 +204,61 @@ async def get_drama(drama_id: str) -> Drama:
 - **Cache invalidation**: Simple - just delete R2 object on write
 - **Cache rebuild**: Can rebuild entire cache from DB if corrupted
 
+### Cache Update Race Conditions
+
+**Problem**: Multiple workers updating cache concurrently can overwrite each other:
+```
+Worker A: Load v1 from DB → Generate JSON → Upload to R2
+Worker B: Load v2 from DB → Generate JSON → Upload to R2 (overwrites A!)
+```
+
+**Impact**:
+- ✅ Not critical: Database is source of truth, cache is just for speed
+- ✅ Temporary: Next cache rebuild will fix stale data
+- ⚠️ Wasted work: Workers duplicate effort
+- ⚠️ Stale reads: Brief window of serving old cached data
+
+**Solutions**:
+
+1. **Debouncing (Recommended)**:
+   ```python
+   # Only update cache after 5 seconds of no writes
+   await debounce_cache_update(drama_id, delay=5.0)
+   ```
+   - Pros: Coalesces rapid updates, reduces wasted work
+   - Cons: Cache lags behind by debounce delay
+
+2. **Cache Versioning**:
+   ```python
+   # Include DB updated_at timestamp in cache
+   cache_meta = {"updated_at": drama.updated_at}
+
+   # Skip cache update if stale
+   current = await get_drama_from_db(drama_id)
+   if current.updated_at > cache_meta["updated_at"]:
+       return  # Newer version already cached
+   ```
+   - Pros: Avoids overwriting newer cache with stale data
+   - Cons: Requires updated_at field in database
+
+3. **Single Cache Worker**:
+   ```python
+   # Queue all cache updates to single dedicated worker
+   redis.lpush("cache_update_queue", drama_id)
+   ```
+   - Pros: Serialized updates, no race conditions
+   - Cons: Single point of failure, potential bottleneck
+
+4. **Optimistic (Current)**:
+   ```python
+   # Accept last-write-wins, eventual consistency
+   await r2.put_object(key, json)  # No coordination
+   ```
+   - Pros: Simple, no coordination overhead
+   - Cons: Occasional stale cache, wasted worker cycles
+
+**Recommendation**: Use **debouncing** for production scale. Cache staleness of 5-10 seconds is acceptable since database is authoritative.
+
 ## Implementation Checklist (if migrating)
 
 ### Option 1 (Metadata Only)
