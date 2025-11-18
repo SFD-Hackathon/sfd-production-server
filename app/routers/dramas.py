@@ -5,7 +5,6 @@ from typing import Union
 import time
 import random
 import string
-import asyncio
 
 from app.models import (
     Drama,
@@ -81,19 +80,6 @@ async def process_drama_generation(job_id: str, drama_id: str, premise: str):
 
         # Update job status to completed
         job_manager.update_job_status(job_id, JobStatus.completed, result={"dramaId": drama_id})
-
-        # Create separate jobs for each character's audition video (non-blocking)
-        video_job_ids = []
-        for character in drama.characters:
-            if character.url:  # Only create job if character has image
-                video_job_id = generate_id("job")
-                job_manager.create_job(video_job_id, drama_id, JobType.generate_video)
-                video_job_ids.append(video_job_id)
-
-                # Queue each character video as a separate background task
-                asyncio.create_task(process_character_audition_video(video_job_id, drama_id, character.id))
-
-        print(f"✓ Queued {len(video_job_ids)} character audition video jobs")
 
     except Exception as e:
         # Update job status to failed
