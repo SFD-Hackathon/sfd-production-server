@@ -95,7 +95,7 @@ Output ONLY valid JSON matching this exact schema (no markdown, no explanations)
 Guidelines:
 1. Create 2-3 episodes for a complete story arc
 2. Each episode should have 3-5 scenes
-3. Create exactly 2 main characters (main: true) with depth and clear gender (male/female/other)
+3. Create 1-2 main characters (main: true) with depth and clear gender (male/female/other)
 4. You may add supporting characters (main: false) but limit total characters to 4-6
 5. Include detailed scene descriptions with dialogue
 6. Generate image prompts for key visual moments
