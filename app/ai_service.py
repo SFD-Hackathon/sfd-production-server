@@ -49,6 +49,8 @@ Output ONLY valid JSON matching this exact schema (no markdown, no explanations)
       "id": "char_001",
       "name": "Character Name",
       "description": "Character description with personality and background",
+      "gender": "male or female or other",
+      "main": true,
       "url": null,
       "premise_url": null,
       "assets": [],
@@ -93,11 +95,12 @@ Output ONLY valid JSON matching this exact schema (no markdown, no explanations)
 Guidelines:
 1. Create 2-3 episodes for a complete story arc
 2. Each episode should have 3-5 scenes
-3. Develop 2-4 main characters with depth
-4. Include detailed scene descriptions with dialogue
-5. Generate image prompts for key visual moments
-6. Make the story emotionally engaging and dramatic
-7. Keep scenes concise but impactful (short-form drama style)
+3. Create exactly 2 main characters (main: true) with depth and clear gender (male/female/other)
+4. You may add supporting characters (main: false) but limit total characters to 4-6
+5. Include detailed scene descriptions with dialogue
+6. Generate image prompts for key visual moments
+7. Make the story emotionally engaging and dramatic
+8. Keep scenes concise but impactful (short-form drama style)
 """
 
         user_prompt = f"""Generate a short-form drama based on this premise:

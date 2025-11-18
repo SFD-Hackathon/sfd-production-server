@@ -70,6 +70,8 @@ class Character(BaseModel):
     id: str = Field(..., description="Unique identifier for the character")
     name: str = Field(..., description="Character name")
     description: str = Field(..., description="Character description")
+    gender: str = Field(..., description="Character gender (male/female/other)")
+    main: bool = Field(default=False, description="Whether this is a main character")
     url: Optional[str] = Field(None, description="URL to character image")
     premise_url: Optional[str] = Field(None, description="URL to character premise image")
     assets: List[Asset] = Field(default_factory=list, description="Character assets")
