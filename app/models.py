@@ -262,8 +262,8 @@ class EpisodeLite(BaseModel):
     """Simplified episode schema for LLM generation"""
     id: str = Field(..., description="Unique identifier for the episode")
     title: str = Field(..., description="Episode title")
-    description: str = Field(..., description="Episode description")
-    scenes: List[SceneLite] = Field(..., description="Episode scenes (3-5 scenes)")
+    description: str = Field(..., description="Detailed episode description covering the full episode arc and key story beats")
+    scenes: List[SceneLite] = Field(default_factory=list, description="Episode scenes (optional, can be generated later)")
 
 
 class CharacterLite(BaseModel):
@@ -283,3 +283,5 @@ class DramaLite(BaseModel):
     description: str = Field(..., description="Brief description of the drama")
     characters: List[CharacterLite] = Field(..., description="Drama characters (1-2 main, 4-6 total)")
     episodes: List[EpisodeLite] = Field(..., description="Drama episodes (2-3 episodes)")
+
+

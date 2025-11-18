@@ -44,55 +44,39 @@ class AIService:
 
 Guidelines:
 1. Create 2-3 episodes for a complete story arc
-2. Each episode should have 3-5 scenes
-3. Create 1-2 main characters (main: true) with depth and clear gender (male/female/other)
-4. You may add supporting characters (main: false) but limit total characters to 4-6
-5. Include detailed scene descriptions with dialogue
-6. CRITICAL: Every scene MUST have exactly 2 assets:
-   - One "image" asset for the keyframe/thumbnail (kind: "image", duration: null)
-   - One "video" asset for the full animated scene (kind: "video", duration: 10 or 15)
-7. Image prompts should describe a single powerful keyframe moment
-8. Video prompts should describe the complete scene: camera movements, character actions, dialogue, emotions, and transitions
-9. Video duration should be 10 seconds for simple scenes, 15 seconds for more complex scenes with dialogue
-10. Make the story emotionally engaging and dramatic
-11. Keep scenes concise but impactful (short-form drama style)
-
-CHARACTER CONSISTENCY (CRITICAL):
-12. For EVERY scene image asset, populate depends_on with character IDs who appear in that scene (max 3 characters)
-13. This ensures character visual consistency across scenes
-14. Example: If Corgi Musk and Ava appear in a scene, image asset depends_on: ["corgi_musk_id", "ava_id"]
-15. For video assets, set depends_on to reference the scene's image asset ID: ["scene_1_img"]
-16. Always include at least 1 character reference in scene image assets; use up to 3 if multiple characters present
+2. Create 1-2 main characters (main: true) with depth and clear gender (male/female/other)
+3. You may add supporting characters (main: false) but limit total characters to 4-6
+4. Focus on episode-level narrative structure and story beats
+5. Each episode description should cover the full episode arc with key story developments
+6. Make the story emotionally engaging and dramatic
 
 VOICE CHARACTERIZATION (CRITICAL):
-17. For EVERY character, provide a detailed voice_description
-18. Include: tone (warm/harsh/soft), pitch (high/low/medium), pace (fast/slow/measured), accent (if any), emotional quality (cheerful/melancholic/stern), speaking style (formal/casual/fragmented)
-19. Example: "Warm contralto with slight huskiness, speaks deliberately with pauses, maternal and reassuring tone"
-20. Voice should match character personality and background"""
+7. For EVERY character, provide a detailed voice_description
+8. Include: tone (warm/harsh/soft), pitch (high/low/medium), pace (fast/slow/measured), accent (if any), emotional quality (cheerful/melancholic/stern), speaking style (formal/casual/fragmented)
+9. Example: "Warm contralto with slight huskiness, speaks deliberately with pauses, maternal and reassuring tone"
+10. Voice should match character personality and background
+
+Note: Scenes and assets will be generated in a later processing step. Focus on the high-level drama structure, character development, and episode narrative arcs."""
 
         user_prompt = f"""Generate a short-form drama based on this premise:
 
 {premise}
 
 Important:
-- Create compelling characters and emotional scenes
-- CRITICAL: Every scene must have BOTH an image asset AND a video asset (2 assets per scene)
-- Image assets are for thumbnails/keyframes (duration: null)
-- Video assets are for the full animated scene (duration: 10 or 15 seconds) with detailed prompts
-- Use duration 10 for simple scenes, duration 15 for complex scenes with dialogue
-
-CHARACTER CONSISTENCY REQUIREMENT:
-- For EVERY image asset: Set depends_on to list character IDs appearing in that scene (1-3 characters)
-- For EVERY video asset: Set depends_on to reference the scene's image asset ID
-- This is CRITICAL for maintaining visual character consistency across the drama
+- Create compelling characters with depth and clear motivations
+- Develop a complete story arc across 2-3 episodes
+- Each episode description should detail the key story beats, character developments, and emotional moments
+- Focus on narrative structure at the episode level
 
 VOICE CHARACTERIZATION REQUIREMENT:
 - For EVERY character: Provide detailed voice_description with tone, pitch, pace, accent, emotional quality, and speaking style
 - Voice should align with character's personality, age, background, and role in the story
-- Be specific and evocative (e.g., "Gravelly bass with Brooklyn accent, speaks in short bursts, sardonic and world-weary")"""
+- Be specific and evocative (e.g., "Gravelly bass with Brooklyn accent, speaks in short bursts, sardonic and world-weary")
+
+Scenes and visual assets will be generated separately in a later step."""
 
         try:
-            # Call GPT-5 with simplified DramaLite schema
+            # Call GPT-5 with DramaLite schema (episode-level only, no scenes)
             # Note: GPT-5 only supports temperature=1 (default)
             response = await self.client.beta.chat.completions.parse(
                 model=self.model,
@@ -104,7 +88,7 @@ VOICE CHARACTERIZATION REQUIREMENT:
                 response_format=DramaLite,
             )
 
-            # Get parsed DramaLite object
+            # Get parsed DramaLite object (episodes without scenes)
             drama_lite = response.choices[0].message.parsed
 
             # Convert DramaLite to full Drama with all fields
@@ -135,13 +119,13 @@ VOICE CHARACTERIZATION REQUIREMENT:
             for char in drama_lite.characters
         ]
 
-        # Convert episodes with scenes and assets
+        # Convert episodes (with or without scenes)
         episodes = [
             Episode(
                 id=ep.id,
                 title=ep.title,
                 description=ep.description,
-                premise=None,
+                premise=None,  # Premise is for human input, not AI-generated
                 url=None,
                 scenes=[
                     Scene(
@@ -164,7 +148,7 @@ VOICE CHARACTERIZATION REQUIREMENT:
                         metadata=None,
                     )
                     for scene in ep.scenes
-                ],
+                ] if ep.scenes else [],  # Handle empty scenes list
                 assets=[],
                 metadata=None,
             )
@@ -198,46 +182,77 @@ VOICE CHARACTERIZATION REQUIREMENT:
         """
         system_prompt = """You are an expert short-form drama editor. Improve dramas based on user feedback while maintaining the core story.
 
-CHARACTER CONSISTENCY (CRITICAL):
-- For EVERY scene image asset, populate depends_on with character IDs who appear in that scene (max 3 characters)
-- This ensures character visual consistency across scenes
-- For video assets, set depends_on to reference the scene's image asset ID
-- Always include at least 1 character reference in scene image assets; use up to 3 if multiple characters present
+Focus on:
+1. High-level narrative structure and episode arcs
+2. Character development and consistency
+3. Episode pacing and story beats
+4. Overall dramatic impact and emotional resonance
 
 VOICE CHARACTERIZATION (CRITICAL):
 - For EVERY character, provide detailed voice_description with tone, pitch, pace, accent, emotional quality, and speaking style
 - Maintain or enhance existing voice descriptions unless feedback specifically requests changes
-- Voice should align with character's personality, age, background, and role"""
+- Voice should align with character's personality, age, background, and role
+
+Note: Focus on drama, character, and episode levels. Scenes and assets will be handled in a later processing step."""
+
+        # Create simplified drama summary for the prompt
+        drama_summary = {
+            "title": original_drama.title,
+            "description": original_drama.description,
+            "premise": original_drama.premise,
+            "characters": [
+                {
+                    "id": char.id,
+                    "name": char.name,
+                    "description": char.description,
+                    "gender": char.gender,
+                    "voice_description": char.voice_description,
+                    "main": char.main,
+                }
+                for char in original_drama.characters
+            ],
+            "episodes": [
+                {
+                    "id": ep.id,
+                    "title": ep.title,
+                    "description": ep.description,
+                }
+                for ep in original_drama.episodes
+            ],
+        }
 
         user_prompt = f"""Improve this drama based on the feedback:
 
-ORIGINAL DRAMA:
-{original_drama.model_dump_json(indent=2)}
+ORIGINAL DRAMA (High-Level Structure):
+Title: {drama_summary['title']}
+Description: {drama_summary['description']}
+Premise: {drama_summary['premise']}
+
+Characters:
+{chr(10).join(f"- {char['id']}: {char['name']} ({'Main' if char['main'] else 'Supporting'}, {char['gender']}){chr(10)}  Description: {char['description']}{chr(10)}  Voice: {char['voice_description']}" for char in drama_summary['characters'])}
+
+Episodes:
+{chr(10).join(f"{i+1}. {ep['title']}{chr(10)}   {ep['description']}" for i, ep in enumerate(drama_summary['episodes']))}
 
 FEEDBACK:
 {feedback}
 
-NEW DRAMA ID: {new_drama_id}
-
 Instructions:
 1. Keep the original premise and core story
-2. Apply the feedback to improve the drama
-3. Maintain character consistency
-4. Update the drama ID to the new ID provided
-5. Ensure every scene has both image and video assets
+2. Apply the feedback to improve the drama structure, character development, and episode arcs
+3. Maintain character consistency and voice descriptions
+4. Focus on episode-level narrative improvements
+5. Each episode description should detail the key story beats and character developments
 
-CHARACTER CONSISTENCY REQUIREMENT (CRITICAL):
-6. For EVERY image asset: Set depends_on to list character IDs appearing in that scene (1-3 characters)
-7. For EVERY video asset: Set depends_on to reference the scene's image asset ID
-8. This is CRITICAL for maintaining visual character consistency - DO NOT skip this step
+VOICE CHARACTERIZATION REQUIREMENT:
+- For EVERY character: Include detailed voice_description
+- Maintain existing voice descriptions unless feedback requests voice changes
+- If adding new characters, provide comprehensive voice descriptions
 
-VOICE CHARACTERIZATION REQUIREMENT (CRITICAL):
-9. For EVERY character: Include detailed voice_description
-10. Maintain existing voice descriptions unless feedback requests voice changes
-11. If adding new characters, provide comprehensive voice descriptions"""
+Scenes and visual assets will be generated in a later step. Focus on the high-level drama structure."""
 
         try:
-            # Call GPT-5 with Pydantic structured output
+            # Call GPT-5 with DramaLite (episode-level only)
             # Note: GPT-5 only supports temperature=1 (default)
             response = await self.client.beta.chat.completions.parse(
                 model=self.model,
@@ -246,14 +261,14 @@ VOICE CHARACTERIZATION REQUIREMENT (CRITICAL):
                     {"role": "user", "content": user_prompt},
                 ],
                 max_completion_tokens=32000,
-                response_format=Drama,
+                response_format=DramaLite,
             )
 
-            # Get parsed Drama object directly
-            drama = response.choices[0].message.parsed
+            # Get parsed DramaLite object (episodes without scenes)
+            drama_lite = response.choices[0].message.parsed
 
-            # Ensure the drama ID matches what was requested
-            drama.id = new_drama_id
+            # Convert to full Drama
+            drama = self._convert_lite_to_full(drama_lite, new_drama_id, original_drama.premise)
 
             return drama
 
@@ -271,40 +286,42 @@ VOICE CHARACTERIZATION REQUIREMENT (CRITICAL):
         Returns:
             Critical feedback as a string
         """
-        system_prompt = """You are an expert short-form drama critic with deep knowledge of storytelling, character development, pacing, and audience engagement. Your role is to provide constructive, actionable feedback on drama scripts.
+        system_prompt = """You are an expert short-form drama critic with deep knowledge of storytelling, character development, pacing, and audience engagement. Your role is to provide constructive, actionable feedback on drama scripts at the high level.
 
 Focus on:
-1. Story structure and pacing
-2. Character development and consistency
-3. Dialogue quality and authenticity
-4. Emotional impact and engagement
-5. Scene composition and flow
-6. Overall narrative coherence
+1. Overall story structure and narrative arc
+2. Episode pacing and story progression
+3. Character development, depth, and consistency across episodes
+4. Character motivations and believability
+5. Emotional impact and dramatic tension
+6. Episode-to-episode flow and coherence
 7. Strengths and areas for improvement
-8. CHARACTER CONSISTENCY: Check that scene image assets reference character IDs via depends_on (1-3 characters per scene) for visual consistency
-9. ASSET DEPENDENCIES: Verify video assets reference their scene's image asset ID
-10. VOICE CHARACTERIZATION: Evaluate voice descriptions for specificity, appropriateness to character, and distinctiveness across cast
+8. VOICE CHARACTERIZATION: Evaluate voice descriptions for specificity, appropriateness to character, and distinctiveness across cast
 
-Provide honest, balanced feedback that highlights both what works well and what could be improved."""
+Provide honest, balanced feedback that highlights both what works well and what could be improved. Focus on the high-level drama structure - scenes and visual assets will be evaluated separately."""
 
-        user_prompt = f"""Please critique this short-form drama script. Focus on the narrative, characters, dialogue, and overall storytelling quality:
+        user_prompt = f"""Please critique this short-form drama. Focus on the overall narrative structure, character arcs, episode pacing, and storytelling quality at the high level:
 
 DRAMA:
 Title: {drama.title}
 Description: {drama.description}
+Premise: {drama.premise}
 
 Characters:
 {chr(10).join(f"- {char.id}: {char.name} ({'Main' if char.main else 'Supporting'}, {char.gender}){chr(10)}  Description: {char.description}{chr(10)}  Voice: {char.voice_description}" for char in drama.characters)}
 
-Episodes and Scenes with Assets:
-{chr(10).join(f"Episode {i+1}: {ep.title}{chr(10)}{ep.description}{chr(10)}Scenes:{chr(10)}{chr(10).join(f'  Scene {j+1}: {scene.description}{chr(10)}    Assets: {chr(10).join(f\"      - {asset.kind} (id: {asset.id}, depends_on: {asset.depends_on})\" for asset in scene.assets)}' for j, scene in enumerate(ep.scenes))}" for i, ep in enumerate(drama.episodes))}
+Episodes:
+{chr(10).join(f"Episode {i+1}: {ep.title}{chr(10)}Description: {ep.description}" for i, ep in enumerate(drama.episodes))}
 
 Provide a comprehensive critique focusing on:
-1. Script quality, character development, pacing, and storytelling effectiveness
-2. CRITICAL: Verify character consistency - Check that image assets have depends_on referencing character IDs (1-3 per scene)
-3. CRITICAL: Verify video assets reference their scene's image asset via depends_on
-4. Flag any missing or incorrect asset dependencies as this breaks visual character consistency
-5. VOICE EVALUATION: Assess voice_description quality - Are they specific, distinct, and appropriate for each character?"""
+1. Overall story structure and narrative coherence
+2. Character development and consistency across episodes
+3. Episode pacing and progression
+4. Emotional impact and dramatic effectiveness
+5. VOICE EVALUATION: Assess voice_description quality - Are they specific, distinct, and appropriate for each character?
+6. Suggestions for improving the high-level drama structure
+
+Note: This critique focuses on the drama, character, and episode levels. Scene-level details will be evaluated separately."""
 
         try:
             # Call GPT-5 for critique (using standard completion, not structured output)
