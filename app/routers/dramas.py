@@ -445,8 +445,32 @@ async def process_character_audition_video(job_id: str, drama_id: str, character
             character=character,
         )
 
-        # Save updated drama
-        await storage.save_drama(drama)
+        # Find the video asset that was just created
+        video_asset = None
+        for asset in character.assets:
+            if asset.kind == AssetKind.video and asset.metadata and asset.metadata.get("type") == "character_audition":
+                video_asset = asset
+                break
+
+        if not video_asset:
+            raise Exception("Video asset was not created")
+
+        # Reload drama to get latest version, then add only the video asset
+        fresh_drama = await storage.get_drama(drama_id)
+        if not fresh_drama:
+            raise Exception(f"Drama {drama_id} not found")
+
+        # Find character in fresh drama and add video asset
+        for char in fresh_drama.characters:
+            if char.id == character_id:
+                # Check if asset already exists
+                existing_ids = {a.id for a in char.assets}
+                if video_asset.id not in existing_ids:
+                    char.assets.append(video_asset)
+                break
+
+        # Save the fresh drama with new video asset
+        await storage.save_drama(fresh_drama)
 
         # Update job status to completed
         job_manager.update_job_status(
