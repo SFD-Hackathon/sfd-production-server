@@ -35,7 +35,7 @@ class Asset(BaseModel):
     kind: AssetKind = Field(..., description="Type of asset")
     depends_on: List[str] = Field(default_factory=list, description="IDs of assets this asset depends on")
     prompt: str = Field(..., description="Prompt used to generate the asset")
-    duration: Optional[int] = Field(None, description="Duration in seconds (for video assets only)")
+    duration: Optional[int] = Field(None, description="Duration in seconds (10 or 15 for video assets, null for image)")
     url: Optional[str] = Field(None, description="URL to the generated asset")
     metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata for the asset")
 
@@ -225,3 +225,48 @@ class AssetListResponse(BaseModel):
 class JobListResponse(BaseModel):
     """Response for listing jobs"""
     jobs: List[JobStatusRecord]
+
+
+# ============================================================================
+# Lite models for LLM generation (simplified schema with only required fields)
+# ============================================================================
+
+class AssetLite(BaseModel):
+    """Simplified asset schema for LLM generation"""
+    id: str = Field(..., description="Unique identifier for the asset")
+    kind: AssetKind = Field(..., description="Type of asset (image or video)")
+    prompt: str = Field(..., description="Detailed prompt for generating this asset")
+    duration: Optional[int] = Field(None, description="Duration in seconds (10 or 15 for video, null for image)")
+
+
+class SceneLite(BaseModel):
+    """Simplified scene schema for LLM generation"""
+    id: str = Field(..., description="Unique identifier for the scene")
+    description: str = Field(..., description="Detailed scene description with action and dialogue")
+    assets: List[AssetLite] = Field(..., description="Exactly 2 assets: one image and one video")
+
+
+class EpisodeLite(BaseModel):
+    """Simplified episode schema for LLM generation"""
+    id: str = Field(..., description="Unique identifier for the episode")
+    title: str = Field(..., description="Episode title")
+    description: str = Field(..., description="Episode description")
+    scenes: List[SceneLite] = Field(..., description="Episode scenes (3-5 scenes)")
+
+
+class CharacterLite(BaseModel):
+    """Simplified character schema for LLM generation"""
+    id: str = Field(..., description="Unique identifier for the character")
+    name: str = Field(..., description="Character name")
+    description: str = Field(..., description="Character description with personality and background")
+    gender: str = Field(..., description="Character gender (male/female/other)")
+    main: bool = Field(..., description="Whether this is a main character (1-2 main characters)")
+    premise_url: Optional[str] = Field(None, description="URL to character premise image if provided in premise")
+
+
+class DramaLite(BaseModel):
+    """Simplified drama schema for LLM generation (only required fields)"""
+    title: str = Field(..., description="Title of the drama")
+    description: str = Field(..., description="Brief description of the drama")
+    characters: List[CharacterLite] = Field(..., description="Drama characters (1-2 main, 4-6 total)")
+    episodes: List[EpisodeLite] = Field(..., description="Drama episodes (2-3 episodes)")
