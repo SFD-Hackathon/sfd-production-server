@@ -15,6 +15,7 @@ from app.models import (
     DramaListResponse,
     ImproveDramaRequest,
     ImproveDramaResponse,
+    CriticResponse,
     JobType,
     JobStatus,
 )
@@ -78,6 +79,29 @@ async def process_drama_improvement(job_id: str, original_id: str, improved_id: 
         job_manager.update_job_status(job_id, JobStatus.failed, error=str(e))
 
 
+async def process_drama_critique(job_id: str, drama_id: str):
+    """Background task for drama critique"""
+    try:
+        # Update job status to processing
+        job_manager.update_job_status(job_id, JobStatus.processing)
+
+        # Get drama
+        drama = await storage.get_drama(drama_id)
+        if not drama:
+            raise Exception(f"Drama {drama_id} not found")
+
+        # Get critique from AI
+        ai_service = get_ai_service()
+        feedback = await ai_service.critique_drama(drama)
+
+        # Update job status to completed with feedback in result
+        job_manager.update_job_status(job_id, JobStatus.completed, result={"feedback": feedback})
+
+    except Exception as e:
+        # Update job status to failed
+        job_manager.update_job_status(job_id, JobStatus.failed, error=str(e))
+
+
 @router.post("", response_model=Union[Drama, JobResponse], status_code=status.HTTP_201_CREATED)
 async def create_drama(
     request: Union[CreateFromPremise, CreateFromJSON],
@@ -115,7 +139,7 @@ async def create_drama(
             dramaId=drama_id,
             jobId=job_id,
             status=JobStatus.pending,
-            message=f"Drama generation job queued. Use GET /dramas/{drama_id}/jobs/{job_id} to check status.",
+            message=f"Drama generation job queued. Check status at: https://api.shortformdramas.com/dramas/{drama_id}/jobs/{job_id}",
         )
     else:
         # Sync mode - save provided drama
@@ -247,7 +271,7 @@ async def improve_drama(
         improvedId=improved_id,
         jobId=job_id,
         status=JobStatus.pending,
-        message=f"Drama improvement job queued. Use GET /dramas/{improved_id}/jobs/{job_id} to check status.",
+        message=f"Drama improvement job queued. Check status at: https://api.shortformdramas.com/dramas/{improved_id}/jobs/{job_id}",
     )
 
 
@@ -273,3 +297,52 @@ async def generate_drama_assets(drama_id: str):
         "dramaId": drama_id,
         "status": "not_implemented"
     }
+
+
+@router.post("/{drama_id}/critic", response_model=CriticResponse, status_code=status.HTTP_202_ACCEPTED)
+async def critique_drama(
+    drama_id: str,
+    background_tasks: BackgroundTasks,
+):
+    """
+    Get AI-powered critical feedback on a drama script
+
+    Queue an async job to get expert critical analysis of the drama's storytelling,
+    character development, pacing, dialogue, and overall narrative quality.
+    GPT-5 will provide actionable feedback to help improve the script.
+
+    The critique focuses on:
+    - Story structure and pacing
+    - Character development and consistency
+    - Dialogue quality and authenticity
+    - Emotional impact and engagement
+    - Scene composition and flow
+    - Overall narrative coherence
+
+    Returns immediately with a job ID. Use the job status endpoint to retrieve
+    the critique feedback once the job completes.
+    """
+    # Check if drama exists
+    exists = await storage.drama_exists(drama_id)
+    if not exists:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "Drama not found", "message": f"Drama {drama_id} not found"},
+        )
+
+    # Generate job ID
+    job_id = generate_id("job")
+
+    # Create job
+    job_manager.create_job(job_id, drama_id, JobType.critique_drama)
+
+    # Queue background task
+    background_tasks.add_task(process_drama_critique, job_id, drama_id)
+
+    # Return response
+    return CriticResponse(
+        dramaId=drama_id,
+        jobId=job_id,
+        status=JobStatus.pending,
+        message=f"Drama critique job queued. Check status and retrieve feedback at: https://api.shortformdramas.com/dramas/{drama_id}/jobs/{job_id}",
+    )

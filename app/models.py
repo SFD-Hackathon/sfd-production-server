@@ -15,6 +15,7 @@ class JobType(str, Enum):
     """Job type enumeration"""
     generate_drama = "generate_drama"
     improve_drama = "improve_drama"
+    critique_drama = "critique_drama"
     generate_image = "generate_image"
     generate_video = "generate_video"
     generate_audio = "generate_audio"
@@ -33,7 +34,7 @@ class Asset(BaseModel):
     """Asset schema"""
     id: str = Field(..., description="Unique identifier for the asset")
     kind: AssetKind = Field(..., description="Type of asset")
-    depends_on: List[str] = Field(default_factory=list, description="IDs of assets this asset depends on")
+    depends_on: List[str] = Field(default_factory=list, description="IDs this asset depends on. For scene image assets: character IDs (max 3) to ensure character consistency. For scene video assets: the scene's image asset ID.")
     prompt: str = Field(..., description="Prompt used to generate the asset")
     duration: Optional[int] = Field(None, description="Duration in seconds (10 or 15 for video assets, null for image)")
     url: Optional[str] = Field(None, description="URL to the generated asset")
@@ -71,6 +72,7 @@ class Character(BaseModel):
     name: str = Field(..., description="Character name")
     description: str = Field(..., description="Character description")
     gender: str = Field(..., description="Character gender (male/female/other)")
+    voice_description: str = Field(..., description="Description of character's voice (tone, pitch, accent, speaking style, emotional quality)")
     main: bool = Field(default=False, description="Whether this is a main character")
     url: Optional[str] = Field(None, description="URL to character image")
     premise_url: Optional[str] = Field(None, description="URL to character premise image")
@@ -149,6 +151,14 @@ class ImproveDramaResponse(BaseModel):
     jobId: str
     status: JobStatus
     message: str
+
+
+class CriticResponse(BaseModel):
+    """Response for drama critic endpoint"""
+    dramaId: str = Field(..., description="ID of the drama being critiqued")
+    jobId: str = Field(..., description="ID of the critique job")
+    status: JobStatus = Field(..., description="Current job status")
+    message: str = Field(..., description="Instructions for checking job status and result")
 
 
 class ErrorResponse(BaseModel):
@@ -236,6 +246,7 @@ class AssetLite(BaseModel):
     """Simplified asset schema for LLM generation"""
     id: str = Field(..., description="Unique identifier for the asset")
     kind: AssetKind = Field(..., description="Type of asset (image or video)")
+    depends_on: List[str] = Field(default_factory=list, description="CRITICAL: For image assets, list character IDs appearing in scene (max 3) to ensure character consistency. For video assets, reference the scene's image asset ID.")
     prompt: str = Field(..., description="Detailed prompt for generating this asset")
     duration: Optional[int] = Field(None, description="Duration in seconds (10 or 15 for video, null for image)")
 
@@ -261,6 +272,7 @@ class CharacterLite(BaseModel):
     name: str = Field(..., description="Character name")
     description: str = Field(..., description="Character description with personality and background")
     gender: str = Field(..., description="Character gender (male/female/other)")
+    voice_description: str = Field(..., description="Detailed voice description: tone, pitch, pace, accent, emotional quality, speaking style (e.g., 'warm baritone with slight rasp, speaks slowly and thoughtfully')")
     main: bool = Field(..., description="Whether this is a main character (1-2 main characters)")
     premise_url: Optional[str] = Field(None, description="URL to character premise image if provided in premise")
 
