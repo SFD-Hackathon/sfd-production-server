@@ -240,10 +240,10 @@ Description: {drama_summary['description']}
 Premise: {drama_summary['premise']}
 
 Characters:
-{chr(10).join(f"- {char['id']}: {char['name']} ({'Main' if char['main'] else 'Supporting'}, {char['gender']}){chr(10)}  Description: {char['description']}{chr(10)}  Voice: {char['voice_description']}" for char in drama_summary['characters'])}
+{"\n".join(f"- {char['id']}: {char['name']} ({'Main' if char['main'] else 'Supporting'}, {char['gender']})\n  Description: {char['description']}\n  Voice: {char['voice_description']}" for char in drama_summary['characters'])}
 
 Episodes:
-{chr(10).join(f"{i+1}. {ep['title']}{chr(10)}   {ep['description']}" for i, ep in enumerate(drama_summary['episodes']))}
+{"\n".join(f"{i+1}. {ep['title']}\n   {ep['description']}" for i, ep in enumerate(drama_summary['episodes']))}
 
 FEEDBACK:
 {feedback}
@@ -319,10 +319,10 @@ Description: {drama.description}
 Premise: {drama.premise}
 
 Characters:
-{chr(10).join(f"- {char.id}: {char.name} ({'Main' if char.main else 'Supporting'}, {char.gender}){chr(10)}  Description: {char.description}{chr(10)}  Voice: {char.voice_description}" for char in drama.characters)}
+{"\n".join(f"- {char.id}: {char.name} ({'Main' if char.main else 'Supporting'}, {char.gender})\n  Description: {char.description}\n  Voice: {char.voice_description}" for char in drama.characters)}
 
 Episodes:
-{chr(10).join(f"Episode {i+1}: {ep.title}{chr(10)}Description: {ep.description}" for i, ep in enumerate(drama.episodes))}
+{"\n".join(f"Episode {i+1}: {ep.title}\nDescription: {ep.description}" for i, ep in enumerate(drama.episodes))}
 
 Provide a comprehensive critique focusing on:
 1. Overall story structure and narrative coherence
