@@ -13,6 +13,7 @@ from app.models import (
     Scene,
     Character,
     Asset,
+    AssetKind,
 )
 from app.storage import storage
 
@@ -443,13 +444,41 @@ IMPORTANT: Use the EXACT same dimensions and aspect ratio as the reference image
 
             # Upload to R2
             public_url = storage.upload_image(image_bytes, drama_id, character.id)
+
+            # Create and add asset to character
+            asset_id = f"{character.id}_portrait_front_halfbody"
+            asset = Asset(
+                id=asset_id,
+                kind=AssetKind.image,
+                depends_on=[],
+                prompt=character_prompt,
+                duration=None,
+                url=public_url,
+                metadata={"type": "character_portrait", "view": "front", "framing": "half_body"}
+            )
+            character.assets.append(asset)
+
             return public_url
 
         # Check for markdown image format
         md_match = re.search(r"!\[.*?\]\((https?://[^\)]+)\)", message)
         if md_match:
-            # Image is already a URL, return it directly
-            return md_match.group(1)
+            # Image is already a URL, create and add asset
+            public_url = md_match.group(1)
+
+            asset_id = f"{character.id}_portrait_front_halfbody"
+            asset = Asset(
+                id=asset_id,
+                kind=AssetKind.image,
+                depends_on=[],
+                prompt=character_prompt,
+                duration=None,
+                url=public_url,
+                metadata={"type": "character_portrait", "view": "front", "framing": "half_body"}
+            )
+            character.assets.append(asset)
+
+            return public_url
 
         raise Exception("Could not extract image from response")
 
