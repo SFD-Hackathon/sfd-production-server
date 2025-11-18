@@ -382,15 +382,17 @@ Note: This critique focuses on the drama, character, and episode levels. Scene-l
                 "GEMINI_API_KEY and GEMINI_API_BASE environment variables are required"
             )
 
-        # Hard-coded 9:16 aspect ratio
-        aspect_ratio = "9:16"
-        aspect_directive = f"ASPECT RATIO MUST BE {aspect_ratio} (width:height)"
-
         # Build character-focused prompt using character object
-        character_prompt = f"Front half-body portrait of a {character.gender} character: {character.description}. Show from waist up, facing forward, clear facial features, expressive eyes."
+        character_prompt = f"Draw a front half-body portrait of a {character.gender} character on the reference image background: {character.description}. Show from waist up, facing forward, clear facial features, expressive eyes."
 
-        # Put aspect ratio requirement at the beginning AND end for emphasis
-        full_prompt = f"CRITICAL REQUIREMENT: {aspect_directive}\n\nCHARACTER IMAGE: {character_prompt}\n\nSTYLE: Anime style, cartoon illustration, vibrant colors, clean lines, detailed character design.\n\nREMINDER: {aspect_directive}"
+        # Explicitly reference the background image for aspect ratio enforcement
+        full_prompt = f"""Draw the character on the reference image background provided.
+
+CHARACTER: {character_prompt}
+
+STYLE: Anime style, cartoon illustration, vibrant colors, clean lines, detailed character design.
+
+IMPORTANT: Use the EXACT same dimensions and aspect ratio as the reference image. Draw the character portrait on that background, maintaining the vertical 9:16 portrait orientation."""
 
         # Build request content with text prompt
         content = [{"type": "text", "text": full_prompt}]
