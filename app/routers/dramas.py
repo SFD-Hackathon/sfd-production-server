@@ -232,7 +232,7 @@ async def improve_drama(
         )
 
     # Generate IDs
-    improved_id = f"{drama_id}_improved_{int(time.time() * 1000)}"
+    improved_id = request.newDramaId if request.newDramaId else f"{drama_id}_improved_{int(time.time() * 1000)}"
     job_id = generate_id("job")
 
     # Create job

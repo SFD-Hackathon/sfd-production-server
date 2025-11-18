@@ -117,6 +117,7 @@ class CreateFromJSON(BaseModel):
 class ImproveDramaRequest(BaseModel):
     """Request to improve a drama"""
     feedback: str = Field(..., description="Feedback for improving the drama")
+    newDramaId: Optional[str] = Field(None, description="Optional custom ID for the improved drama")
 
 
 # Response models
