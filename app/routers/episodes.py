@@ -66,3 +66,28 @@ async def update_episode(drama_id: str, episode_id: str, update: EpisodeUpdate):
     await storage.save_drama(drama)
 
     return episode
+
+
+@router.post("/{drama_id}/episodes/{episode_id}/generate", status_code=status.HTTP_202_ACCEPTED)
+async def generate_episode_assets(drama_id: str, episode_id: str):
+    """
+    Generate all assets for an episode
+
+    Triggers asset generation jobs for all assets in the episode hierarchy
+    (episode assets and all scene assets).
+
+    **Status:** Not implemented yet - placeholder for future asset generation
+    """
+    # TODO: Implement episode asset generation logic
+    # This will:
+    # 1. Get all assets for this episode and its scenes
+    # 2. For each asset without a URL, create a generation job
+    # 3. Queue jobs for image/video generation
+    # 4. Return list of created job IDs
+
+    return {
+        "message": "Episode asset generation not implemented yet",
+        "dramaId": drama_id,
+        "episodeId": episode_id,
+        "status": "not_implemented"
+    }

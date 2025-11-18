@@ -68,3 +68,27 @@ async def update_character(
     await storage.save_drama(drama)
 
     return character
+
+
+@router.post("/{drama_id}/characters/{character_id}/generate", status_code=status.HTTP_202_ACCEPTED)
+async def generate_character_assets(drama_id: str, character_id: str):
+    """
+    Generate all assets for a character
+
+    Triggers asset generation jobs for all assets associated with this character.
+
+    **Status:** Not implemented yet - placeholder for future asset generation
+    """
+    # TODO: Implement character asset generation logic
+    # This will:
+    # 1. Get all assets for this character
+    # 2. For each asset without a URL, create a generation job
+    # 3. Queue jobs for character images/videos
+    # 4. Return list of created job IDs
+
+    return {
+        "message": "Character asset generation not implemented yet",
+        "dramaId": drama_id,
+        "characterId": character_id,
+        "status": "not_implemented"
+    }

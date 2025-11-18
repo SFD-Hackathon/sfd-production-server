@@ -232,3 +232,27 @@ async def improve_drama(
         status=JobStatus.pending,
         message=f"Drama improvement job queued. Use GET /dramas/{improved_id}/jobs/{job_id} to check status.",
     )
+
+
+@router.post("/{drama_id}/generate", status_code=status.HTTP_202_ACCEPTED)
+async def generate_drama_assets(drama_id: str):
+    """
+    Generate all assets for a drama
+
+    Triggers asset generation jobs for all assets in the drama hierarchy
+    (drama assets, character assets, episode assets, scene assets).
+
+    **Status:** Not implemented yet - placeholder for future asset generation
+    """
+    # TODO: Implement asset generation logic
+    # This will:
+    # 1. Traverse all assets in the drama
+    # 2. For each asset without a URL, create a generation job
+    # 3. Queue jobs for image/video generation
+    # 4. Return list of created job IDs
+
+    return {
+        "message": "Asset generation not implemented yet",
+        "dramaId": drama_id,
+        "status": "not_implemented"
+    }
