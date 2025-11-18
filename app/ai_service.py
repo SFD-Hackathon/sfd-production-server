@@ -193,5 +193,13 @@ Instructions:
             raise
 
 
-# Global AI service instance
-ai_service = AIService()
+# Global AI service instance (lazy-loaded)
+_ai_service = None
+
+
+def get_ai_service() -> AIService:
+    """Get or create the AI service instance (lazy loading)"""
+    global _ai_service
+    if _ai_service is None:
+        _ai_service = AIService()
+    return _ai_service

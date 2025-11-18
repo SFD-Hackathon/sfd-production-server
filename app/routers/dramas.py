@@ -19,7 +19,7 @@ from app.models import (
     JobStatus,
 )
 from app.storage import storage
-from app.ai_service import ai_service
+from app.ai_service import get_ai_service
 from app.job_manager import job_manager
 
 router = APIRouter()
@@ -38,6 +38,7 @@ async def process_drama_generation(job_id: str, drama_id: str, premise: str):
         job_manager.update_job_status(job_id, JobStatus.processing)
 
         # Generate drama using AI
+        ai_service = get_ai_service()
         drama = await ai_service.generate_drama(premise, drama_id)
 
         # Save to storage
@@ -63,6 +64,7 @@ async def process_drama_improvement(job_id: str, original_id: str, improved_id: 
             raise Exception(f"Original drama {original_id} not found")
 
         # Improve drama using AI
+        ai_service = get_ai_service()
         improved_drama = await ai_service.improve_drama(original_drama, feedback, improved_id)
 
         # Save to storage
