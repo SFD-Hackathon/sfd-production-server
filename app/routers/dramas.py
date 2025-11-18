@@ -48,6 +48,9 @@ async def process_drama_generation(job_id: str, drama_id: str, premise: str):
         # Save to storage
         await storage.save_drama(drama)
 
+        # Compute hash after first save for conflict detection
+        drama_hash = storage._compute_drama_hash(drama)
+
         # Generate character images for all characters in parallel
         async def generate_char_image(character):
             try:
@@ -76,8 +79,8 @@ async def process_drama_generation(job_id: str, drama_id: str, premise: str):
         except Exception as cover_error:
             print(f"Warning: Failed to generate drama cover image: {cover_error}")
 
-        # Save updated drama with character images and cover
-        await storage.save_drama(drama)
+        # Save updated drama with hash verification to detect concurrent modifications
+        await storage.save_drama(drama, expected_hash=drama_hash)
 
         # Update job status to completed
         job_manager.update_job_status(job_id, JobStatus.completed, result={"dramaId": drama_id})
@@ -104,6 +107,9 @@ async def process_drama_improvement(job_id: str, original_id: str, improved_id: 
 
         # Save to storage
         await storage.save_drama(improved_drama)
+
+        # Compute hash after first save for conflict detection
+        drama_hash = storage._compute_drama_hash(improved_drama)
 
         # Generate character images for characters without URLs in parallel
         async def generate_char_image(character):
@@ -134,8 +140,8 @@ async def process_drama_improvement(job_id: str, original_id: str, improved_id: 
         except Exception as cover_error:
             print(f"Warning: Failed to generate drama cover image: {cover_error}")
 
-        # Save updated drama with character images and cover
-        await storage.save_drama(improved_drama)
+        # Save updated drama with hash verification to detect concurrent modifications
+        await storage.save_drama(improved_drama, expected_hash=drama_hash)
 
         # Update job status to completed
         job_manager.update_job_status(job_id, JobStatus.completed, result={"dramaId": improved_id})
