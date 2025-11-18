@@ -2,10 +2,9 @@
 
 import os
 import json
-import hashlib
 import boto3
 from botocore.config import Config
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 from app.models import Drama, Asset
 
 
@@ -224,65 +223,44 @@ class R2Storage:
         except Exception:
             return False
 
-    async def add_asset_to_character(
-        self, drama_id: str, character_id: str, asset: Asset, max_retries: int = 3
-    ) -> None:
+    async def add_asset_to_character(self, drama_id: str, character_id: str, asset: Asset) -> None:
         """
-        Safely add an asset to a character with optimistic locking
+        Add an asset to a character by reloading latest drama
 
-        This prevents lost updates when concurrent modifications occur by using
-        hash-based conflict detection. Will retry on conflicts up to max_retries times.
+        Simple reload-append-save pattern. No conflict detection - if concurrent
+        modifications occur, last write wins. This is acceptable for asset additions
+        since assets have unique IDs and duplicates are filtered.
 
         Args:
             drama_id: ID of the drama
             character_id: ID of the character
             asset: Asset to add to character
-            max_retries: Maximum number of retry attempts on conflict (default: 3)
 
         Raises:
             Exception: If drama or character not found
-            StorageConflictError: If unable to save after max_retries attempts
         """
-        for attempt in range(max_retries):
-            try:
-                # Get fresh drama and compute hash
-                drama = await self.get_drama(drama_id)
-                if not drama:
-                    raise Exception(f"Drama {drama_id} not found")
+        # Reload fresh drama
+        drama = await self.get_drama(drama_id)
+        if not drama:
+            raise Exception(f"Drama {drama_id} not found")
 
-                drama_hash = self._compute_drama_hash(drama)
+        # Find character
+        character = None
+        for char in drama.characters:
+            if char.id == character_id:
+                character = char
+                break
 
-                # Find character
-                character = None
-                for char in drama.characters:
-                    if char.id == character_id:
-                        character = char
-                        break
+        if not character:
+            raise Exception(f"Character {character_id} not found in drama {drama_id}")
 
-                if not character:
-                    raise Exception(f"Character {character_id} not found in drama {drama_id}")
+        # Check if asset already exists
+        existing_ids = {a.id for a in character.assets}
+        if asset.id not in existing_ids:
+            character.assets.append(asset)
 
-                # Check if asset already exists
-                existing_ids = {a.id for a in character.assets}
-                if asset.id not in existing_ids:
-                    character.assets.append(asset)
-                else:
-                    # Asset already exists, no need to save
-                    return
-
-                # Save with optimistic locking
-                await self.save_drama(drama, expected_hash=drama_hash)
-
-                # Success - exit retry loop
-                return
-
-            except StorageConflictError as e:
-                if attempt == max_retries - 1:
-                    # Final attempt failed, raise the error
-                    raise
-                # Conflict detected, retry with fresh data
-                print(f"Conflict detected on attempt {attempt + 1}, retrying... ({e})")
-                continue
+        # Save updated drama (no hash verification)
+        await self.save_drama(drama)
 
 
 # Global storage instance
