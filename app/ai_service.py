@@ -120,7 +120,7 @@ Remember:
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=0.8,
-                max_tokens=4000,
+                max_completion_tokens=4000,
                 response_format={"type": "json_object"},
             )
 
@@ -177,7 +177,7 @@ Instructions:
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=0.8,
-                max_tokens=4000,
+                max_completion_tokens=4000,
                 response_format={"type": "json_object"},
             )
 
