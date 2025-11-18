@@ -60,6 +60,21 @@ class R2Storage:
         drama_json = drama.model_dump_json()
         return hashlib.sha256(drama_json.encode()).hexdigest()
 
+    async def get_current_hash_from_id(self, drama_id: str) -> Optional[str]:
+        """
+        Get current hash of a drama by ID
+
+        Args:
+            drama_id: ID of the drama
+
+        Returns:
+            SHA256 hash of current drama, or None if drama doesn't exist
+        """
+        current_drama = await self.get_drama(drama_id)
+        if current_drama:
+            return self._compute_drama_hash(current_drama)
+        return None
+
     async def save_drama(self, drama: Drama, expected_hash: Optional[str] = None) -> None:
         """
         Save drama to R2 storage with optional optimistic locking

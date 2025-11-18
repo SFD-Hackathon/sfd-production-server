@@ -41,14 +41,17 @@ async def process_drama_generation(job_id: str, drama_id: str, premise: str):
         # Update job status to processing
         job_manager.update_job_status(job_id, JobStatus.processing)
 
+        # Get initial hash to detect conflicts during entire job execution
+        initial_hash = await storage.get_current_hash_from_id(drama_id)
+
         # Generate drama using AI
         ai_service = get_ai_service()
         drama = await ai_service.generate_drama(premise, drama_id)
 
-        # Save to storage
-        await storage.save_drama(drama)
+        # Save to storage with hash verification (protects against drama created during AI generation)
+        await storage.save_drama(drama, expected_hash=initial_hash)
 
-        # Compute hash after first save for conflict detection
+        # Compute hash after first save for conflict detection during image generation
         drama_hash = storage._compute_drama_hash(drama)
 
         # Generate character images for all characters in parallel
@@ -96,6 +99,9 @@ async def process_drama_improvement(job_id: str, original_id: str, improved_id: 
         # Update job status to processing
         job_manager.update_job_status(job_id, JobStatus.processing)
 
+        # Get initial hash to detect conflicts during entire job execution
+        initial_hash = await storage.get_current_hash_from_id(improved_id)
+
         # Get original drama
         original_drama = await storage.get_drama(original_id)
         if not original_drama:
@@ -105,10 +111,10 @@ async def process_drama_improvement(job_id: str, original_id: str, improved_id: 
         ai_service = get_ai_service()
         improved_drama = await ai_service.improve_drama(original_drama, feedback, improved_id)
 
-        # Save to storage
-        await storage.save_drama(improved_drama)
+        # Save to storage with hash verification (protects against drama created during AI generation)
+        await storage.save_drama(improved_drama, expected_hash=initial_hash)
 
-        # Compute hash after first save for conflict detection
+        # Compute hash after first save for conflict detection during image generation
         drama_hash = storage._compute_drama_hash(improved_drama)
 
         # Generate character images for characters without URLs in parallel
