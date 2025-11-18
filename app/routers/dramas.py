@@ -130,12 +130,27 @@ async def list_dramas(
     cursor: str = Query(default=None, description="Pagination cursor from previous response"),
 ):
     """
-    List all dramas
+    List all dramas (summary view)
 
-    Retrieve a paginated list of all dramas
+    Retrieve a paginated list of all dramas with only top-level fields.
+    Use GET /dramas/{dramaId} to get full details including characters, episodes, and scenes.
     """
     dramas, next_cursor = await storage.list_dramas(limit=limit, cursor=cursor)
-    return DramaListResponse(dramas=dramas, cursor=next_cursor)
+
+    # Convert to summary view (exclude characters, episodes, assets)
+    drama_summaries = [
+        {
+            "id": drama.id,
+            "title": drama.title,
+            "description": drama.description,
+            "premise": drama.premise,
+            "url": drama.url,
+            "metadata": drama.metadata,
+        }
+        for drama in dramas
+    ]
+
+    return DramaListResponse(dramas=drama_summaries, cursor=next_cursor)
 
 
 @router.get("/{drama_id}", response_model=Drama)

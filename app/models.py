@@ -90,6 +90,16 @@ class Drama(BaseModel):
     metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata for the drama")
 
 
+class DramaSummary(BaseModel):
+    """Drama summary schema (lightweight version without nested data)"""
+    id: str = Field(..., description="Unique identifier for the drama")
+    title: str = Field(..., description="Title of the drama")
+    description: str = Field(..., description="Brief description of the drama")
+    premise: str = Field(..., description="Original premise used to generate the drama")
+    url: Optional[str] = Field(None, description="Optional URL to drama resource")
+    metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata for the drama")
+
+
 # Request models
 class CreateFromPremise(BaseModel):
     """Create drama from text premise"""
@@ -185,8 +195,8 @@ class AssetUpdate(BaseModel):
 
 # List response models
 class DramaListResponse(BaseModel):
-    """Response for listing dramas"""
-    dramas: List[Drama]
+    """Response for listing dramas (summary view)"""
+    dramas: List[DramaSummary]
     cursor: Optional[str] = None
 
 
