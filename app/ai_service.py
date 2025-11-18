@@ -605,7 +605,7 @@ IMPORTANT: Use the EXACT same dimensions and aspect ratio as the reference image
         self,
         drama_id: str,
         character: Character,
-        duration: int = 5,
+        duration: int = 10,
     ) -> str:
         """
         Generate character audition video using Sora API
@@ -614,7 +614,7 @@ IMPORTANT: Use the EXACT same dimensions and aspect ratio as the reference image
         Args:
             drama_id: ID of the drama
             character: Character object with description, image URL, etc.
-            duration: Video duration in seconds (default: 5)
+            duration: Video duration in seconds (must be 10 or 15, default: 10)
 
         Returns:
             Public R2 URL of the uploaded video
@@ -623,6 +623,10 @@ IMPORTANT: Use the EXACT same dimensions and aspect ratio as the reference image
             raise ValueError(
                 "SORA_API_KEY and SORA_API_BASE environment variables are required"
             )
+
+        # Validate duration (Sora only supports 10 or 15 seconds)
+        if duration not in [10, 15]:
+            raise ValueError(f"Duration must be 10 or 15 seconds, got {duration}")
 
         # Build character audition prompt
         audition_prompt = f"Character audition video for {character.name}: {character.description}. Show the character in a dynamic pose, turning slightly and making expressive gestures that showcase their personality. Anime style, smooth animation."
@@ -710,10 +714,18 @@ IMPORTANT: Use the EXACT same dimensions and aspect ratio as the reference image
 
                         # Create and add video asset to character
                         asset_id = f"{character.id}_audition_video"
+
+                        # Find the character image asset to set as dependency
+                        depends_on = []
+                        for existing_asset in character.assets:
+                            if existing_asset.kind == AssetKind.image:
+                                depends_on.append(existing_asset.id)
+                                break
+
                         asset = Asset(
                             id=asset_id,
                             kind=AssetKind.video,
-                            depends_on=[],
+                            depends_on=depends_on,  # Reference character image asset
                             prompt=audition_prompt,
                             duration=duration,
                             url=public_url,
