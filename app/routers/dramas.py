@@ -62,7 +62,19 @@ async def process_drama_generation(job_id: str, drama_id: str, premise: str):
         # Generate all character images concurrently
         await asyncio.gather(*[generate_char_image(char) for char in drama.characters])
 
-        # Save updated drama with character images
+        # Generate drama cover image featuring main characters
+        try:
+            cover_url = await ai_service.generate_drama_cover_image(
+                drama_id=drama_id,
+                drama=drama,
+            )
+            # Set drama url to cover image
+            drama.url = cover_url
+            print(f"✓ Generated drama cover image")
+        except Exception as cover_error:
+            print(f"Warning: Failed to generate drama cover image: {cover_error}")
+
+        # Save updated drama with character images and cover
         await storage.save_drama(drama)
 
         # Update job status to completed
@@ -108,7 +120,19 @@ async def process_drama_improvement(job_id: str, original_id: str, improved_id: 
         # Generate all character images concurrently
         await asyncio.gather(*[generate_char_image(char) for char in improved_drama.characters])
 
-        # Save updated drama with character images
+        # Generate drama cover image featuring main characters
+        try:
+            cover_url = await ai_service.generate_drama_cover_image(
+                drama_id=improved_id,
+                drama=improved_drama,
+            )
+            # Set drama url to cover image
+            improved_drama.url = cover_url
+            print(f"✓ Generated drama cover image")
+        except Exception as cover_error:
+            print(f"Warning: Failed to generate drama cover image: {cover_error}")
+
+        # Save updated drama with character images and cover
         await storage.save_drama(improved_drama)
 
         # Update job status to completed

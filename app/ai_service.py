@@ -361,51 +361,34 @@ Note: This critique focuses on the drama, character, and episode levels. Scene-l
             traceback.print_exc()
             raise
 
-    async def generate_character_image(
+    async def _generate_and_upload_image(
         self,
-        drama_id: str,
-        character: Character,
-        references: Optional[List[str]] = None,
+        prompt: str,
+        references: List[str],
+        upload_key: str,
     ) -> str:
         """
-        Generate front half-body character image using Gemini API and upload to R2
+        Helper method to generate image using Gemini and upload to R2
 
         Args:
-            drama_id: ID of the drama
-            character: Character object with id, description, gender, etc.
-            references: Optional list of additional reference image URLs
+            prompt: Full prompt for image generation
+            references: List of reference image URLs
+            upload_key: R2 key for uploading the image (e.g., "dramas/{id}/cover.png")
 
         Returns:
-            Public R2 URL of the uploaded character image
+            Public R2 URL of the uploaded image
         """
         if not self.gemini_api_key or not self.gemini_api_base:
             raise ValueError(
                 "GEMINI_API_KEY and GEMINI_API_BASE environment variables are required"
             )
 
-        # Build character-focused prompt using character object
-        character_prompt = f"Draw a front half-body portrait of a {character.gender} character on the reference image background: {character.description}. Show from waist up, facing forward, clear facial features, expressive eyes."
+        # Build request content
+        content = [{"type": "text", "text": prompt}]
 
-        # Explicitly reference the background image for aspect ratio enforcement
-        full_prompt = f"""Draw the character on the reference image background provided.
-
-CHARACTER: {character_prompt}
-
-STYLE: Anime style, cartoon illustration, vibrant colors, clean lines, detailed character design.
-
-IMPORTANT: Use the EXACT same dimensions and aspect ratio as the reference image. Draw the character portrait on that background, maintaining the vertical 9:16 portrait orientation."""
-
-        # Build request content with text prompt
-        content = [{"type": "text", "text": full_prompt}]
-
-        # Always include 9:16 reference image first
-        reference_9_16 = "https://pub-82a9c3c68d1a421f8e31796087e04132.r2.dev/9_16_reference.jpg"
-        content.append({"type": "image_url", "image_url": {"url": reference_9_16}})
-
-        # Add any additional references
-        if references:
-            for ref in references:
-                content.append({"type": "image_url", "image_url": {"url": ref}})
+        # Add reference images
+        for ref in references:
+            content.append({"type": "image_url", "image_url": {"url": ref}})
 
         # Build API request payload
         payload = {
@@ -443,44 +426,133 @@ IMPORTANT: Use the EXACT same dimensions and aspect ratio as the reference image
             image_bytes = base64.b64decode(encoded)
 
             # Upload to R2
-            public_url = storage.upload_image(image_bytes, drama_id, character.id)
-
-            # Create and add asset to character
-            asset_id = f"{character.id}_portrait_front_halfbody"
-            asset = Asset(
-                id=asset_id,
-                kind=AssetKind.image,
-                depends_on=[],
-                prompt=character_prompt,
-                duration=None,
-                url=public_url,
-                metadata={"type": "character_portrait", "view": "front", "framing": "half_body"}
+            storage.s3_client.put_object(
+                Bucket=storage.bucket_name,
+                Key=upload_key,
+                Body=image_bytes,
+                ContentType="image/png",
             )
-            character.assets.append(asset)
-
-            return public_url
+            return f"{storage.public_url_base}/{upload_key}"
 
         # Check for markdown image format
         md_match = re.search(r"!\[.*?\]\((https?://[^\)]+)\)", message)
         if md_match:
-            # Image is already a URL, create and add asset
-            public_url = md_match.group(1)
-
-            asset_id = f"{character.id}_portrait_front_halfbody"
-            asset = Asset(
-                id=asset_id,
-                kind=AssetKind.image,
-                depends_on=[],
-                prompt=character_prompt,
-                duration=None,
-                url=public_url,
-                metadata={"type": "character_portrait", "view": "front", "framing": "half_body"}
-            )
-            character.assets.append(asset)
-
-            return public_url
+            return md_match.group(1)
 
         raise Exception("Could not extract image from response")
+
+    async def generate_character_image(
+        self,
+        drama_id: str,
+        character: Character,
+        references: Optional[List[str]] = None,
+    ) -> str:
+        """
+        Generate front half-body character image using Gemini API and upload to R2
+
+        Args:
+            drama_id: ID of the drama
+            character: Character object with id, description, gender, etc.
+            references: Optional list of additional reference image URLs
+
+        Returns:
+            Public R2 URL of the uploaded character image
+        """
+        # Build character-focused prompt using character object
+        character_prompt = f"Draw a front half-body portrait of a {character.gender} character on the reference image background: {character.description}. Show from waist up, facing forward, clear facial features, expressive eyes."
+
+        # Explicitly reference the background image for aspect ratio enforcement
+        full_prompt = f"""Draw the character on the reference image background provided.
+
+CHARACTER: {character_prompt}
+
+STYLE: Anime style, cartoon illustration, vibrant colors, clean lines, detailed character design.
+
+IMPORTANT: Use the EXACT same dimensions and aspect ratio as the reference image. Draw the character portrait on that background, maintaining the vertical 9:16 portrait orientation."""
+
+        # Build reference list: always include 9:16 reference first
+        reference_9_16 = "https://pub-82a9c3c68d1a421f8e31796087e04132.r2.dev/9_16_reference.jpg"
+        all_references = [reference_9_16]
+        if references:
+            all_references.extend(references)
+
+        # Generate and upload using helper method
+        upload_key = f"dramas/{drama_id}/characters/{character.id}.png"
+        public_url = await self._generate_and_upload_image(full_prompt, all_references, upload_key)
+
+        # Create and add asset to character
+        asset_id = f"{character.id}_portrait_front_halfbody"
+        asset = Asset(
+            id=asset_id,
+            kind=AssetKind.image,
+            depends_on=[],
+            prompt=character_prompt,
+            duration=None,
+            url=public_url,
+            metadata={"type": "character_portrait", "view": "front", "framing": "half_body"}
+        )
+        character.assets.append(asset)
+
+        return public_url
+
+    async def generate_drama_cover_image(
+        self,
+        drama_id: str,
+        drama: Drama,
+    ) -> str:
+        """
+        Generate drama cover image featuring main characters using Gemini API and upload to R2
+
+        Args:
+            drama_id: ID of the drama
+            drama: Drama object with title, description, and characters
+
+        Returns:
+            Public R2 URL of the uploaded cover image
+        """
+        # Get main characters
+        main_characters = [char for char in drama.characters if char.main]
+
+        # Build cover image prompt
+        character_descriptions = ", ".join([f"{char.name} ({char.gender}): {char.description}" for char in main_characters])
+        cover_prompt = f"Create a dramatic cover image for the short-form drama '{drama.title}'. {drama.description}. Feature these main characters: {character_descriptions}. Show them in a dynamic, engaging composition that captures the drama's essence."
+
+        # Explicitly reference the background image for aspect ratio enforcement
+        full_prompt = f"""Draw the drama cover image on the reference image background provided.
+
+DRAMA COVER: {cover_prompt}
+
+STYLE: Anime style, dramatic composition, vibrant colors, cinematic lighting, eye-catching design suitable for a drama poster.
+
+IMPORTANT: Use the EXACT same dimensions and aspect ratio as the reference image. Create a compelling cover composition on that background, maintaining the vertical 9:16 portrait orientation."""
+
+        # Build reference list: always include 9:16 reference first, then character images
+        reference_9_16 = "https://pub-82a9c3c68d1a421f8e31796087e04132.r2.dev/9_16_reference.jpg"
+        all_references = [reference_9_16]
+
+        # Add character reference images if available
+        for char in main_characters:
+            if char.url:
+                all_references.append(char.url)
+
+        # Generate and upload using helper method
+        upload_key = f"dramas/{drama_id}/cover.png"
+        public_url = await self._generate_and_upload_image(full_prompt, all_references, upload_key)
+
+        # Create and add asset to drama
+        asset_id = f"{drama_id}_cover"
+        asset = Asset(
+            id=asset_id,
+            kind=AssetKind.image,
+            depends_on=[char.id for char in main_characters],
+            prompt=cover_prompt,
+            duration=None,
+            url=public_url,
+            metadata={"type": "drama_cover", "main_characters": [char.id for char in main_characters]}
+        )
+        drama.assets.append(asset)
+
+        return public_url
 
 
 # Global AI service instance (lazy-loaded)
