@@ -41,6 +41,11 @@ class AIService:
         self.gemini_api_base = os.getenv("GEMINI_API_BASE")
         self.gemini_model = "gemini-2.5-flash-image"
 
+        # Sora configuration for video generation
+        self.sora_api_key = os.getenv("SORA_API_KEY")
+        self.sora_api_base = os.getenv("SORA_API_BASE")
+        self.sora_model = "sora-2"
+
     async def generate_drama(self, premise: str, drama_id: str) -> Drama:
         """
         Generate drama from text premise using GPT-5
@@ -595,6 +600,147 @@ IMPORTANT: Use the EXACT same dimensions and aspect ratio as the reference image
         drama.assets.append(asset)
 
         return public_url
+
+    async def generate_character_audition_video(
+        self,
+        drama_id: str,
+        character: Character,
+        duration: int = 5,
+    ) -> str:
+        """
+        Generate character audition video using Sora API
+        Includes retry logic with up to 2 retries (3 total attempts)
+
+        Args:
+            drama_id: ID of the drama
+            character: Character object with description, image URL, etc.
+            duration: Video duration in seconds (default: 5)
+
+        Returns:
+            Public R2 URL of the uploaded video
+        """
+        if not self.sora_api_key or not self.sora_api_base:
+            raise ValueError(
+                "SORA_API_KEY and SORA_API_BASE environment variables are required"
+            )
+
+        # Build character audition prompt
+        audition_prompt = f"Character audition video for {character.name}: {character.description}. Show the character in a dynamic pose, turning slightly and making expressive gestures that showcase their personality. Anime style, smooth animation."
+
+        # Prepare API request
+        headers = {
+            "Authorization": f"Bearer {self.sora_api_key}",
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "prompt": audition_prompt,
+            "model": self.sora_model,
+            "aspect_ratio": "9:16",
+            "duration": str(duration),
+            "hd": False
+        }
+
+        # Add character image as reference if available
+        if character.url:
+            payload["images"] = [character.url]
+
+        # Retry logic: up to 2 retries (3 total attempts)
+        max_retries = 2
+        last_error = None
+
+        for attempt in range(max_retries + 1):
+            try:
+                # Submit video generation job
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    response = await client.post(
+                        f"{self.sora_api_base}/v2/videos/generations",
+                        headers=headers,
+                        json=payload,
+                    )
+                    response.raise_for_status()
+                    result = response.json()
+
+                task_id = result.get('task_id')
+                if not task_id:
+                    raise Exception("No task_id in response")
+
+                print(f"Video generation task created: {task_id} for character {character.name}")
+
+                # Poll for completion (max 10 minutes)
+                max_wait = 600
+                poll_interval = 5
+                elapsed = 0
+
+                while elapsed < max_wait:
+                    await asyncio.sleep(poll_interval)
+                    elapsed += poll_interval
+
+                    # Check status
+                    async with httpx.AsyncClient(timeout=30.0) as client:
+                        status_response = await client.get(
+                            f"{self.sora_api_base}/v2/videos/generations/{task_id}",
+                            headers=headers,
+                        )
+                        status_response.raise_for_status()
+                        status_result = status_response.json()
+
+                    status = status_result.get('status')
+                    print(f"Video generation status for {character.name}: {status} ({elapsed}s)")
+
+                    if status == 'SUCCESS':
+                        video_url = status_result['data']['output']
+                        print(f"✓ Video generation completed for {character.name}")
+
+                        # Download video and upload to R2
+                        async with httpx.AsyncClient(timeout=60.0) as client:
+                            video_response = await client.get(video_url)
+                            video_response.raise_for_status()
+                            video_bytes = video_response.content
+
+                        # Upload to R2
+                        upload_key = f"dramas/{drama_id}/characters/{character.id}_audition.mp4"
+                        storage.s3_client.put_object(
+                            Bucket=storage.bucket_name,
+                            Key=upload_key,
+                            Body=video_bytes,
+                            ContentType="video/mp4",
+                        )
+                        public_url = f"{storage.public_url_base}/{upload_key}"
+
+                        # Create and add video asset to character
+                        asset_id = f"{character.id}_audition_video"
+                        asset = Asset(
+                            id=asset_id,
+                            kind=AssetKind.video,
+                            depends_on=[],
+                            prompt=audition_prompt,
+                            duration=duration,
+                            url=public_url,
+                            metadata={"type": "character_audition", "duration_seconds": duration}
+                        )
+                        character.assets.append(asset)
+
+                        return public_url
+
+                    elif status == 'FAILED' or status == 'FAILURE':
+                        error = status_result.get('error') or status_result.get('fail_reason', 'Unknown error')
+                        raise Exception(f"Video generation failed: {error}")
+
+                    # Continue polling
+                    continue
+
+                # Timeout
+                raise Exception(f"Video generation timeout after {max_wait}s")
+
+            except Exception as e:
+                last_error = e
+                if attempt < max_retries:
+                    print(f"Video generation attempt {attempt + 1} failed for {character.name}: {e}. Retrying...")
+                    await asyncio.sleep(3)  # Wait 3 seconds before retry
+                else:
+                    print(f"Video generation failed after {max_retries + 1} attempts for {character.name}")
+                    raise Exception(f"Video generation failed after {max_retries + 1} attempts: {last_error}")
 
 
 # Global AI service instance (lazy-loaded)
