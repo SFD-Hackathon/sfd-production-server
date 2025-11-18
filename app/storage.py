@@ -38,7 +38,7 @@ class R2Storage:
 
     def _get_drama_key(self, drama_id: str) -> str:
         """Get S3 key for drama object"""
-        return f"dramas/{drama_id}.json"
+        return f"dramas/{drama_id}/drama.json"
 
     async def save_drama(self, drama: Drama) -> None:
         """
