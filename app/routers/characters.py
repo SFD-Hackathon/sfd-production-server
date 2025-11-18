@@ -100,7 +100,7 @@ async def generate_character_image(drama_id: str, character_id: str):
     # Generate character image using AI service
     try:
         ai_service = get_ai_service()
-        image_url = ai_service.generate_character_image(
+        image_url = await ai_service.generate_character_image(
             drama_id=drama_id,
             character=character,
         )

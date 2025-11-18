@@ -5,6 +5,7 @@ from typing import Union
 import time
 import random
 import string
+import asyncio
 
 from app.models import (
     Drama,
@@ -45,6 +46,25 @@ async def process_drama_generation(job_id: str, drama_id: str, premise: str):
         # Save to storage
         await storage.save_drama(drama)
 
+        # Generate character images for all characters in parallel
+        async def generate_char_image(character):
+            try:
+                # Generate image asynchronously
+                image_url = await ai_service.generate_character_image(
+                    drama_id=drama_id,
+                    character=character,
+                )
+                character.url = image_url
+                print(f"✓ Generated image for character: {character.name}")
+            except Exception as char_error:
+                print(f"Warning: Failed to generate image for character {character.id}: {char_error}")
+
+        # Generate all character images concurrently
+        await asyncio.gather(*[generate_char_image(char) for char in drama.characters])
+
+        # Save updated drama with character images
+        await storage.save_drama(drama)
+
         # Update job status to completed
         job_manager.update_job_status(job_id, JobStatus.completed, result={"dramaId": drama_id})
 
@@ -69,6 +89,26 @@ async def process_drama_improvement(job_id: str, original_id: str, improved_id: 
         improved_drama = await ai_service.improve_drama(original_drama, feedback, improved_id)
 
         # Save to storage
+        await storage.save_drama(improved_drama)
+
+        # Generate character images for characters without URLs in parallel
+        async def generate_char_image(character):
+            if not character.url:  # Only generate if character doesn't have an image
+                try:
+                    # Generate image asynchronously
+                    image_url = await ai_service.generate_character_image(
+                        drama_id=improved_id,
+                        character=character,
+                    )
+                    character.url = image_url
+                    print(f"✓ Generated image for character: {character.name}")
+                except Exception as char_error:
+                    print(f"Warning: Failed to generate image for character {character.id}: {char_error}")
+
+        # Generate all character images concurrently
+        await asyncio.gather(*[generate_char_image(char) for char in improved_drama.characters])
+
+        # Save updated drama with character images
         await storage.save_drama(improved_drama)
 
         # Update job status to completed

@@ -3,7 +3,7 @@
 import os
 import re
 import base64
-import requests
+import httpx
 from typing import Optional, List
 from openai import AsyncOpenAI
 from app.models import (
@@ -360,7 +360,7 @@ Note: This critique focuses on the drama, character, and episode levels. Scene-l
             traceback.print_exc()
             raise
 
-    def generate_character_image(
+    async def generate_character_image(
         self,
         drama_id: str,
         character: Character,
@@ -418,15 +418,15 @@ IMPORTANT: Use the EXACT same dimensions and aspect ratio as the reference image
             "Content-Type": "application/json",
         }
 
-        # Make API request
-        response = requests.post(
-            f"{self.gemini_api_base}/v1/chat/completions",
-            headers=headers,
-            json=payload,
-            timeout=60,
-        )
-        response.raise_for_status()
-        result = response.json()
+        # Make async API request
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(
+                f"{self.gemini_api_base}/v1/chat/completions",
+                headers=headers,
+                json=payload,
+            )
+            response.raise_for_status()
+            result = response.json()
 
         # Extract image from response
         message = result["choices"][0]["message"]["content"]

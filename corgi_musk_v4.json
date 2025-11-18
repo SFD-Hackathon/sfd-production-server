@@ -1,0 +1,425 @@
+{
+    "id": "corgi_musk_v4",
+    "title": "Corgi Musk: Fetch the Stars",
+    "description": "An ambitious corgi inventor chases a sky-high dream, is shaken by betrayal, and rises from heartbreak to become the richest dog in the world\u2014by changing the lives of strays everywhere.",
+    "premise": "create a short drama script of 5 episodes, talking about how Corgi Musk (pixar style cartoon figured inspired by Elon Musk) become the richest dog in the world",
+    "url": null,
+    "characters": [
+        {
+            "id": "char-corgi",
+            "name": "Corgi Musk",
+            "description": "A scrappy, bright-eyed corgi entrepreneur with a cosmic imagination. Loyal, relentless, and awkwardly charming. Builds whimsical tech to solve big problems and believes fortunes should follow purpose.",
+            "gender": "male",
+            "main": true,
+            "url": null,
+            "premise_url": null,
+            "assets": [],
+            "metadata": null
+        },
+        {
+            "id": "char-ava",
+            "name": "Ava Byte",
+            "description": "A sleek border collie engineer and Corgi\u2019s closest friend. Analytical, empathetic, and unafraid to challenge him. She translates his wild ideas into reality.",
+            "gender": "female",
+            "main": true,
+            "url": null,
+            "premise_url": null,
+            "assets": [],
+            "metadata": null
+        },
+        {
+            "id": "char-barkley",
+            "name": "Mr. Barkley",
+            "description": "A gruff bulldog venture capitalist with a surprisingly tender heart. Tests founders with tough love.",
+            "gender": "male",
+            "main": false,
+            "url": null,
+            "premise_url": null,
+            "assets": [],
+            "metadata": null
+        },
+        {
+            "id": "char-daisy",
+            "name": "Daisy Scoop",
+            "description": "A pug journalist with a nose for stories that matter. Quick-witted, honest, and fair.",
+            "gender": "female",
+            "main": false,
+            "url": null,
+            "premise_url": null,
+            "assets": [],
+            "metadata": null
+        },
+        {
+            "id": "char-wolf",
+            "name": "Wolf Byte",
+            "description": "A sleek greyhound tech mogul and rival. Competitive, brilliant, and image-obsessed\u2014until he learns what truly counts.",
+            "gender": "male",
+            "main": false,
+            "url": null,
+            "premise_url": null,
+            "assets": [],
+            "metadata": null
+        }
+    ],
+    "episodes": [
+        {
+            "id": "ep1",
+            "title": "Moonbone Dreams",
+            "description": "In a cramped garage, Corgi Musk dares to build a network in the sky\u2014sparking first wins and quiet doubts.",
+            "premise": null,
+            "url": null,
+            "scenes": [
+                {
+                    "id": "ep1-sc1",
+                    "description": "Corgi Musk stares at a hand-drawn star map labeled \u201cFetch the Stars.\u201d Ava Byte steps in, grease-smudged, as the tiny garage hums with prototypes. Corgi: \u201cOne day, every stray will have a signal home.\u201d Ava: \u201cThen let\u2019s build the leash between sky and street.\u201d A flicker in the corner\u2014an old shelter tag on a nail\u2014reminds Corgi why they\u2019re here.",
+                    "image_url": null,
+                    "video_url": null,
+                    "assets": [
+                        {
+                            "id": "ep1-sc1-img",
+                            "kind": "image",
+                            "depends_on": [],
+                            "prompt": "A single powerful keyframe: a bright-eyed corgi inventor on a stool in a cozy, cluttered garage-lab at night, paw touching a taped poster that reads \u201cFetch the Stars.\u201d Warm lamp glow, scattered blueprints, a miniature rocket with a chew-bone logo, Ava Byte (border collie engineer) in the doorway smiling. Whimsical, cinematic 3D family-film aesthetic with soft lighting and big expressive eyes; a dented shelter tag hangs in the corner, catching a glint.",
+                            "duration": null,
+                            "url": null,
+                            "metadata": null
+                        },
+                        {
+                            "id": "ep1-sc1-vid",
+                            "kind": "video",
+                            "depends_on": [],
+                            "prompt": "Open on a slow dolly-in across a cluttered garage: schematics, a tiny rocket, and a star map. Ambient hum and soft nighttime crickets. Corgi Musk (bright-eyed corgi) places his paw on a poster: \u201cFetch the Stars.\u201d He whispers, determined: \u201cOne day, every stray will have a signal home.\u201d Door creaks; Ava Byte (border collie) steps in, wiping grease from her paw. Camera pans to reveal warm lamp light pooling between them. Ava smiles: \u201cThen let\u2019s build the leash between sky and street.\u201d Cut to a glint on a dented shelter tag hanging nearby. Close-up on their paws bumping in a pact. Music swells. Match-cut to the rocket model gleaming as the scene fades out.",
+                            "duration": 15,
+                            "url": null,
+                            "metadata": null
+                        }
+                    ],
+                    "metadata": null
+                },
+                {
+                    "id": "ep1-sc2",
+                    "description": "First backyard test: a toy-sized \u2018BarkNet\u2019 satellite deploys from a stubby rocket. It works\u2014for five glorious seconds. Corgi: \u201cWe did it!\u201d Ava (already scanning heat curves): \u201cWe did half of it.\u201d A tiny worry cracks the joy.",
+                    "image_url": null,
+                    "video_url": null,
+                    "assets": [
+                        {
+                            "id": "ep1-sc2-img",
+                            "kind": "image",
+                            "depends_on": [],
+                            "prompt": "Keyframe: a tiny rocket arcs from a backyard launch rail, leaving a glittering trail; a chew-bone logo shines on its side. Corgi Musk and Ava Byte, goggles on, look up with awe as a miniature satellite unfolds like a pop-up flower against a twilight sky. Vibrant, whimsical 3D animation aesthetic, soft bloom, joyful wonder; faint thermal readouts glow on Ava\u2019s tablet.",
+                            "duration": null,
+                            "url": null,
+                            "metadata": null
+                        },
+                        {
+                            "id": "ep1-sc2-vid",
+                            "kind": "video",
+                            "depends_on": [],
+                            "prompt": "Start with a low-angle shot of a stubby rocket on a homemade launch rail in a suburban backyard. Countdown beeps; wind chimes tinkle. Corgi, excited: \u201cThree\u2026 two\u2026 one\u2026 bark!\u201d The rocket whooshes up; camera whips to track the glittering arc. A tiny satellite pops out, petals unfolding. Ava laughs through goggles: \u201cIt\u2019s beautiful!\u201d Bars on a handheld receiver spike; a dozen lost-collar beacons ping back. Then: sputter\u2014signal flickers. Ava, wincing at a thermal spike: \u201cWe did half of it.\u201d Corgi, still beaming: \u201cHalf a miracle is still a map.\u201d The satellite stabilizes enough to land by parachute. Hard cut to Corgi hugging the parachute, tail thumping, while the screen cross-dissolves to schematics with a small red caution icon lingering.",
+                            "duration": 15,
+                            "url": null,
+                            "metadata": null
+                        }
+                    ],
+                    "metadata": null
+                },
+                {
+                    "id": "ep1-sc3",
+                    "description": "Mr. Barkley grills them in a bare conference room. He scoffs, then slides a small check. Barkley: \u201cI invest in stubborn.\u201d Corgi: \u201cWe invent for strays.\u201d Ava\u2019s eyes betray a private vow: safety first, no matter what it costs them.",
+                    "image_url": null,
+                    "video_url": null,
+                    "assets": [
+                        {
+                            "id": "ep1-sc3-img",
+                            "kind": "image",
+                            "depends_on": [],
+                            "prompt": "Keyframe: a gruff bulldog investor (Mr. Barkley) leans back in a stark conference room, one brow raised; a tiny, crumpled check extends from his paw. Corgi Musk sits forward, eyes shining, Ava Byte steady beside him. Neutral daylight, sleek table reflections, hopeful tension in the air; a bold red sticky note on their prototype reads \u201cSAFETY PASS?\u201d.",
+                            "duration": null,
+                            "url": null,
+                            "metadata": null
+                        },
+                        {
+                            "id": "ep1-sc3-vid",
+                            "kind": "video",
+                            "depends_on": [],
+                            "prompt": "Static wide shot of a minimalist conference room. Mr. Barkley (bulldog) flips through their deck, snorts: \u201cRockets? For dogs?\u201d Cut to Corgi\u2019s earnest close-up: \u201cSignals for families\u2014so no dog sleeps alone.\u201d Ava slides a prototype tag; it chirps, projecting a dotted path to \u2018Home\u2019. Barkley\u2019s eyes soften. He grumbles, slides a small check across: \u201cI invest in stubborn.\u201d Corgi clasps the check, whispering: \u201cWe invent for strays.\u201d Insert: Ava\u2019s fingers linger on a red sticky labeled \u201cSAFETY PASS?\u201d Resolve hardens in her eyes. Camera pushes in on the check as a heartbeat thump underscores the moment; smash cut to their garage bursting into motion.",
+                            "duration": 15,
+                            "url": null,
+                            "metadata": null
+                        }
+                    ],
+                    "metadata": null
+                },
+                {
+                    "id": "ep1-sc4",
+                    "description": "A montage of tiny wins: Daisy Scoop reports a feel-good story as neighborhood dogs reunite with owners. Corgi tapes new goals on the wall. Ava watches, smiling\u2014then quietly circles \u2018Scale Safely\u2019 twice.",
+                    "image_url": null,
+                    "video_url": null,
+                    "assets": [
+                        {
+                            "id": "ep1-sc4-img",
+                            "kind": "image",
+                            "depends_on": [],
+                            "prompt": "Keyframe: smiling pug reporter Daisy Scoop with a mic in a lively street as a child hugs a returned beagle; Corgi Musk and Ava Byte watch from the curb, humbled and glowing. Confetti drift, warm city dusk, sparkling family-film look; on the garage wall behind them, \u2018Scale Safely\u2019 is underlined twice in marker.",
+                            "duration": null,
+                            "url": null,
+                            "metadata": null
+                        },
+                        {
+                            "id": "ep1-sc4-vid",
+                            "kind": "video",
+                            "depends_on": [],
+                            "prompt": "Quick-cut montage: Daisy Scoop (pug) reports to camera: \u201cBarkNet brings pups home!\u201d B-roll of blinking smart tags, joyful reunions, wagging tails. Cut to Corgi and Ava in the garage, taping new goals\u2014\u2018Scale Safely\u2019, \u2018Every City Online\u2019. Ava quietly double-underlines \u2018Scale Safely\u2019. A hand-sketched world map fills with tiny glowing pawprints. Upbeat music, handheld energy. End on Corgi exhaling, a quiet smile, as the lights in the map keep spreading; quick dip to black.",
+                            "duration": 10,
+                            "url": null,
+                            "metadata": null
+                        }
+                    ],
+                    "metadata": null
+                }
+            ],
+            "assets": [],
+            "metadata": null
+        },
+        {
+            "id": "ep2",
+            "title": "Headwinds and Fractures",
+            "description": "Success attracts a storm. A rival dazzles, a safety crisis erupts\u2014and a shocking betrayal splits the team.",
+            "premise": null,
+            "url": null,
+            "scenes": [
+                {
+                    "id": "ep2-sc1",
+                    "description": "Wolf Byte unveils a flashier network. Investors wobble. Wolf: \u201cSpeed wins.\u201d Corgi (under his breath): \u201cFamilies win.\u201d Ava catches Wolf\u2019s demo touting \u2018unmatched safety,\u2019 and her jaw tightens.",
+                    "image_url": null,
+                    "video_url": null,
+                    "assets": [
+                        {
+                            "id": "ep2-sc1-img",
+                            "kind": "image",
+                            "depends_on": [],
+                            "prompt": "Keyframe: sleek greyhound mogul Wolf Byte on a glossy stage, neon lights gleaming off a massive world map. In the wings, Corgi Musk watches, jaw set; Ava beside him with a steadying paw that\u2019s tense. Cool blue tones, high-tech spectacle, heightened contrast; on the screen behind Wolf: \u201cUNMATCHED SAFETY.\u201d",
+                            "duration": null,
+                            "url": null,
+                            "metadata": null
+                        },
+                        {
+                            "id": "ep2-sc1-vid",
+                            "kind": "video",
+                            "depends_on": [],
+                            "prompt": "Begin with a crane shot over a flashy product launch. Wolf Byte (greyhound) proclaims: \u201cSpeed wins!\u201d Applause erupts. Cut to Corgi and Ava in the wings, lit by monitor glow. Corgi murmurs, \u201cFamilies win.\u201d Split-screen: investor texts buzz \u2018Reconsider?\u2019 Wolf\u2019s demo sizzles\u2014glossy satellites streak across an animated globe; a banner reads \u2018Unmatched Safety\u2019. Tight on Ava\u2019s clenched jaw; tight on Corgi\u2019s resolve as he whispers, \u201cBack to the lab.\u201d Smash cut to their garage door rolling down like a visor.",
+                            "duration": 15,
+                            "url": null,
+                            "metadata": null
+                        }
+                    ],
+                    "metadata": null
+                },
+                {
+                    "id": "ep2-sc2",
+                    "description": "Factory scramble. A batch of tags overheats. Ava shouts to shut it down; Corgi hesitates, eye on an upcoming launch. Alarms blare. Ava: \u201cPeople before pace!\u201d Corgi slams the switch: \u201cShut it down!\u201d Fear and friction crackle in the silence that follows.",
+                    "image_url": null,
+                    "video_url": null,
+                    "assets": [
+                        {
+                            "id": "ep2-sc2-img",
+                            "kind": "image",
+                            "depends_on": [],
+                            "prompt": "Keyframe: red alarm lights strobing in a small factory line; Ava Byte slams a big red stop button, eyes fierce. Corgi Musk is caught mid-reach, torn, sweat-beaded nose, conveyor steam curling. Industrial textures, urgent energy; a countdown clock looms in the background.",
+                            "duration": null,
+                            "url": null,
+                            "metadata": null
+                        },
+                        {
+                            "id": "ep2-sc2-vid",
+                            "kind": "video",
+                            "depends_on": [],
+                            "prompt": "Handheld, chaotic. Steam hisses, red lights flash. A thermal readout spikes on a conveyor of smart tags. Ava shouts over alarms: \u201cShut it down!\u201d Corgi, eyes flicking to a wall countdown for the next launch, hesitates. Close on Ava\u2019s urgent gaze: \u201cPeople before pace!\u201d Beat\u2014Corgi slams the kill switch: \u201cShut it down!\u201d Machines whine to a stop. Workers sigh in relief. The room settles into anxious silence. Corgi and Ava stand facing each other, chests heaving; a gulf between them. Lights fade to a cool blue on their worried faces.",
+                            "duration": 15,
+                            "url": null,
+                            "metadata": null
+                        }
+                    ],
+                    "metadata": null
+                },
+                {
+                    "id": "ep2-sc3",
+                    "description": "Plot twist\u2014betrayal revealed. Corgi discovers Wolf\u2019s \u2018safety\u2019 feature uses BarkNet code signatures. Audit logs point to Ava: she quietly sent schematics to a Wolf-affiliated safety lab under NDA. Corgi: \u201cYou gave our bones to a wolf.\u201d Ava: \u201cI gave them a chance to keep dogs safe.\u201d The room fractures with hurt.",
+                    "image_url": null,
+                    "video_url": null,
+                    "assets": [
+                        {
+                            "id": "ep2-sc3-img",
+                            "kind": "image",
+                            "depends_on": [],
+                            "prompt": "Keyframe: in a dim operations room, a holographic email log hangs between Corgi Musk and Ava Byte; highlighted: a file sent to \u201cGreyline Safety Labs\u201d (Wolf Byte subsidiary). Corgi\u2019s ears droop, eyes stunned; Ava\u2019s gaze is wet, guilty, but resolute. The glow paints a cold line between them; a torn printout of the BarkNet logo on the desk.",
+                            "duration": null,
+                            "url": null,
+                            "metadata": null
+                        },
+                        {
+                            "id": "ep2-sc3-vid",
+                            "kind": "video",
+                            "depends_on": [],
+                            "prompt": "Close-up: a cursor opens an audit log. A signature match pings; Corgi\u2019s breath catches. Over-the-shoulder reveal: an email trail\u2014schematics sent to \u201cGreyline Safety Labs.\u201d He turns to Ava: \u201cYou gave our bones to a wolf.\u201d Ava swallows: \u201cI gave them a chance to keep dogs safe. NDAs, Corgi\u2014it was an audit, not a theft.\u201d He steps back, eyes glassy: \u201cYou didn\u2019t trust me.\u201d She fires back, voice breaking: \u201cI didn\u2019t trust the clock you\u2019re racing.\u201d Silence drops. A prototype tag on the table chirps once, lonely. Corgi whispers, \u201cGet out.\u201d Ava leaves, tail low. The tag\u2019s light fades as the music cuts to a single, aching note.",
+                            "duration": 15,
+                            "url": null,
+                            "metadata": null
+                        }
+                    ],
+                    "metadata": null
+                },
+                {
+                    "id": "ep2-sc4",
+                    "description": "Rooftop night. The city hum below. Alone at first, Corgi clutches his old shelter tag, whispering, \u201cI promised I\u2019d never leave anyone behind.\u201d Ava returns, trembling: \u201cI thought I was protecting them\u2026 and us.\u201d Corgi: \u201cIf I become rich, it must be because every dog is found\u2014and because we can live with how.\u201d A fragile truce forms.",
+                    "image_url": null,
+                    "video_url": null,
+                    "assets": [
+                        {
+                            "id": "ep2-sc4-img",
+                            "kind": "image",
+                            "depends_on": [],
+                            "prompt": "Keyframe: Corgi Musk on a rooftop ledge under a midnight sky, city lights like stars below, clutching a dented shelter tag. Ava Byte approaches slowly, ears low, a soft breeze ruffling fur. Cool moonlight, tearful intimacy; distance between them bridged by a shared shadow.",
+                            "duration": null,
+                            "url": null,
+                            "metadata": null
+                        },
+                        {
+                            "id": "ep2-sc4-vid",
+                            "kind": "video",
+                            "depends_on": [],
+                            "prompt": "Slow push-in on a quiet rooftop. Wind brushes Corgi\u2019s fur as he holds a dented shelter tag: \u201cI waited by the door for weeks.\u201d Footsteps; Ava appears, voice trembling: \u201cI thought I was protecting them\u2026 and us.\u201d Beat. Corgi looks up: \u201cIf I become rich, it must be because every dog is found\u2014and because we can live with how.\u201d Ava nods, tears catching moonlight: \u201cThen \u2018how\u2019 becomes our metric.\u201d They don\u2019t hug yet, but they sit side by side, gazes lifted to the stars. A soft score swells with hope and ache.",
+                            "duration": 15,
+                            "url": null,
+                            "metadata": null
+                        }
+                    ],
+                    "metadata": null
+                },
+                {
+                    "id": "ep2-sc5",
+                    "description": "They pivot. \u2018Homespan\u2019\u2014an adoption and safety platform powered by BarkNet. Daisy returns to help tell the whole truth. Mr. Barkley fronts risky capital\u2014with governance. Barkley: \u201cTransparency, safety, then scale.\u201d Ava: \u201cDeal.\u201d Corgi: \u201cDeal.\u201d",
+                    "image_url": null,
+                    "video_url": null,
+                    "assets": [
+                        {
+                            "id": "ep2-sc5-img",
+                            "kind": "image",
+                            "depends_on": [],
+                            "prompt": "Keyframe: a whiteboard filled with the word \u2018Homespan\u2019 circled, arrows to \u2018Shelter Signal\u2019, \u2018Safe Routes\u2019, \u2018Adoption\u2019, and \u2018Governance\u2019. Corgi points with a marker, Ava draws safety protocols, Daisy Scoop sets a mic on the table; Mr. Barkley folds paws, serious but supportive. Bright morning light, renewed momentum, a contract labeled \u2018Safety Charter\u2019.",
+                            "duration": null,
+                            "url": null,
+                            "metadata": null
+                        },
+                        {
+                            "id": "ep2-sc5-vid",
+                            "kind": "video",
+                            "depends_on": [],
+                            "prompt": "Montage with clear beats. Wide: Corgi writes \u2018Homespan\u2019 on a whiteboard. Ava sketches safety gates and a shelter dashboard. Daisy sets up a camera: \u201cWe tell the whole story\u2014the error, the fix, the why.\u201d Corgi to lens: \u201cBecause home shouldn\u2019t be luck.\u201d Cut to Barkley sliding a bolder check and a slim policy folder: \u201cTransparency, safety, then scale.\u201d Ava and Corgi both: \u201cDeal.\u201d Quick inserts: coding, soldering, safety drills with volunteers, dual-signoff checklists clicking into place. Final beat: a clean app interface lights up\u2014\u2018Shelter Signal ONLINE\u2019. They exhale together as the screen hard-cuts to black.",
+                            "duration": 15,
+                            "url": null,
+                            "metadata": null
+                        }
+                    ],
+                    "metadata": null
+                }
+            ],
+            "assets": [],
+            "metadata": null
+        },
+        {
+            "id": "ep3",
+            "title": "Fetch the Stars",
+            "description": "The mission scales globally. Wealth follows purpose\u2014tempered by hard-won trust\u2014and is immediately put to work.",
+            "premise": null,
+            "url": null,
+            "scenes": [
+                {
+                    "id": "ep3-sc1",
+                    "description": "Global activation. Cities light up as shelters connect. Daisy narrates: \u201cWhat started in a garage now spans the world.\u201d Ava and Corgi share a quiet look that says: we did this\u2014the right way.",
+                    "image_url": null,
+                    "video_url": null,
+                    "assets": [
+                        {
+                            "id": "ep3-sc1-img",
+                            "kind": "image",
+                            "depends_on": [],
+                            "prompt": "Keyframe: a glowing world map on a wall fills with pulsing paw-shaped lights across continents. Corgi Musk and Ava Byte stand shoulder to shoulder in silhouette, Daisy Scoop reporting nearby. Awe-filled, cinematic glow, celebratory yet humble; a small overlay reads \u201cHomespan: LIVE.\u201d",
+                            "duration": null,
+                            "url": null,
+                            "metadata": null
+                        },
+                        {
+                            "id": "ep3-sc1-vid",
+                            "kind": "video",
+                            "depends_on": [],
+                            "prompt": "Start with a tight shot on a single map light blinking. It blooms\u2014then dozens more ignite, spreading across the globe. Pull back to reveal a small operations room: Corgi and Ava watching, breath held, their paws nearly touching. Daisy narrates softly to camera: \u201cWhat started in a garage now spans the world.\u201d Cutaways: shelter doors opening, volunteers cheering, smart tags chirping as routes to \u2018Home\u2019 draw on screens. Music lifts; quick montage of joyful reunions from different cultures. End on Corgi whispering, \u201cWelcome home,\u201d as one last light flickers on and Ava smiles through tears.",
+                            "duration": 10,
+                            "url": null,
+                            "metadata": null
+                        }
+                    ],
+                    "metadata": null
+                },
+                {
+                    "id": "ep3-sc2",
+                    "description": "Boardroom offers to buy them out for a fortune. Wolf Byte is there, quieter now. Corgi refuses: \u201cWe don\u2019t sell homes. We build them.\u201d Wolf slides a folder: \u201cWe\u2019ve withdrawn our safety patent claims.\u201d A nod of respect replaces rivalry\u2019s snarl.",
+                    "image_url": null,
+                    "video_url": null,
+                    "assets": [
+                        {
+                            "id": "ep3-sc2-img",
+                            "kind": "image",
+                            "depends_on": [],
+                            "prompt": "Keyframe: a polished boardroom with a towering city view. A contract on the table shows an astronomical number. Corgi Musk pushes it back gently, calm and resolute. Wolf Byte watches, thoughtful, offering a slim folder labeled \u201cPatent Withdrawal\u201d; Ava\u2019s paw rests on the table, supportive. Cool daylight, dignified restraint.",
+                            "duration": null,
+                            "url": null,
+                            "metadata": null
+                        },
+                        {
+                            "id": "ep3-sc2-vid",
+                            "kind": "video",
+                            "depends_on": [],
+                            "prompt": "Elegant tracking shot around a glossy table. A human executive slides a contract forward: pages whisper; numbers stun. Wolf Byte, unexpectedly subdued, studies Corgi and Ava, then slides a folder: \u201cWe\u2019ve withdrawn our safety claims.\u201d Executive: \u201cName your price.\u201d Corgi breathes in, looks to Ava, then back: \u201cWe don\u2019t sell homes. We build them.\u201d Beat of silence. Wolf exhales, a small smile: \u201cMaybe I was racing the wrong clock.\u201d Barkley\u2019s chuckle echoes from the doorway. The contract closes with a soft thud. Camera lifts to the skyline as the choice hangs dignified in the air.",
+                            "duration": 15,
+                            "url": null,
+                            "metadata": null
+                        }
+                    ],
+                    "metadata": null
+                },
+                {
+                    "id": "ep3-sc3",
+                    "description": "Celebration at the original garage. Corgi is named the richest dog in the world, and he pledges most of it to shelters. Corgi: \u201cRich is when no one is left behind.\u201d Ava squeezes his paw; Daisy\u2019s camera catches real tears. Wolf watches from the doorway, quietly clapping.",
+                    "image_url": null,
+                    "video_url": null,
+                    "assets": [
+                        {
+                            "id": "ep3-sc3-img",
+                            "kind": "image",
+                            "depends_on": [],
+                            "prompt": "Keyframe: the cozy garage dressed with string lights. A simple banner reads \u201cFound.\u201d Corgi Musk on a small crate podium, eyes glassy, paw over heart; Ava Byte beside him, proud; Daisy films; Mr. Barkley claps in the back. Wolf Byte stands in the doorway, softened expression. Warm, communal glow, photos of reunited families ring the \u2018Fetch the Stars\u2019 poster.",
+                            "duration": null,
+                            "url": null,
+                            "metadata": null
+                        },
+                        {
+                            "id": "ep3-sc3-vid",
+                            "kind": "video",
+                            "depends_on": [],
+                            "prompt": "Begin on a close-up of a humble plaque: \u201cRichest Dog in the World.\u201d Pull back to reveal the old garage filled with neighbors, volunteers, wagging pups. Corgi steps onto a crate. His voice wavers: \u201cRich is when no one is left behind.\u201d Gasps and soft applause. He continues: \u201cWe\u2019ll fund every shelter that needs a signal.\u201d Ava squeezes his paw; Daisy\u2019s camera glints with a teardrop on the lens. Barkley barks a proud laugh. In the doorway, Wolf claps once, sincere. The crowd chants \u201cFound! Found!\u201d Camera tilts up to the \u2018Fetch the Stars\u2019 poster, now ringed with real photos of reunited families, before fading to a final, glowing pawprint.",
+                            "duration": 15,
+                            "url": null,
+                            "metadata": null
+                        }
+                    ],
+                    "metadata": null
+                }
+            ],
+            "assets": [],
+            "metadata": null
+        }
+    ],
+    "assets": [],
+    "metadata": null
+}

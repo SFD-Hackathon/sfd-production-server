@@ -1,0 +1,533 @@
+{
+    "id": "corgi_musk_v5",
+    "title": "Corgi Musk: Fetch the Stars",
+    "description": "An ambitious corgi inventor builds a skywide network to guide strays home, stumbles through a safety crisis and betrayal, then grows into a leader whose wealth follows care\u2014and funds shelters everywhere.",
+    "premise": "create a short drama script of 5 episodes, talking about how Corgi Musk (pixar style cartoon figured inspired by Elon Musk) become the richest dog in the world",
+    "url": null,
+    "characters": [
+        {
+            "id": "char-corgi",
+            "name": "Corgi Musk",
+            "description": "A scrappy, bright-eyed corgi entrepreneur with a cosmic imagination. Loyal, relentless, and awkwardly charming. Builds whimsical tech to solve big problems and believes fortunes should follow purpose\u2014learning to put safety before speed.",
+            "gender": "male",
+            "main": true,
+            "url": null,
+            "premise_url": null,
+            "assets": [],
+            "metadata": null
+        },
+        {
+            "id": "char-ava",
+            "name": "Ava Byte",
+            "description": "A sleek border collie engineer and Corgi\u2019s closest friend. Analytical, empathetic, and unafraid to challenge him. She translates wild ideas into reality and insists on rigorous, transparent safety.",
+            "gender": "female",
+            "main": true,
+            "url": null,
+            "premise_url": null,
+            "assets": [],
+            "metadata": null
+        },
+        {
+            "id": "char-barkley",
+            "name": "Mr. Barkley",
+            "description": "A gruff bulldog venture capitalist with a surprisingly tender heart. Tests founders with tough love and demands governance: real safety roadmaps, audits, and accountability.",
+            "gender": "male",
+            "main": false,
+            "url": null,
+            "premise_url": null,
+            "assets": [],
+            "metadata": null
+        },
+        {
+            "id": "char-daisy",
+            "name": "Daisy Scoop",
+            "description": "A pug journalist with a nose for stories that matter. Quick-witted, honest, and fair\u2014willing to pause a scoop to spare harm when accountability is in motion.",
+            "gender": "female",
+            "main": false,
+            "url": null,
+            "premise_url": null,
+            "assets": [],
+            "metadata": null
+        },
+        {
+            "id": "char-wolf",
+            "name": "Wolf Byte",
+            "description": "A sleek greyhound tech mogul and rival. Competitive, brilliant, and image-obsessed\u2014humbled when showmanship outruns substance.",
+            "gender": "male",
+            "main": false,
+            "url": null,
+            "premise_url": null,
+            "assets": [],
+            "metadata": null
+        }
+    ],
+    "episodes": [
+        {
+            "id": "ep1",
+            "title": "Moonbone Dreams",
+            "description": "In a cramped garage, Corgi Musk dares to build a network in the sky\u2014sparking first wins, a safety vow, and a seed of governance.",
+            "premise": null,
+            "url": null,
+            "scenes": [
+                {
+                    "id": "ep1-sc1",
+                    "description": "Corgi Musk touches a taped star map labeled \u201cFetch the Stars,\u201d whispering the plan. BarkNet, he explains in a single breath: \u201cLittle chew-bone satellites ping collar tags and city lamppost beacons, triangulating a cool, safe route home.\u201d Ava Byte, grease-smudged, steps in. They bump paws beneath the warm lamp. In the corner, an old shelter tag glints like a star\u2014the promise he once waited for.",
+                    "image_url": null,
+                    "video_url": null,
+                    "assets": [
+                        {
+                            "id": "ep1-sc1-img",
+                            "kind": "image",
+                            "depends_on": [],
+                            "prompt": "A keyframe in a cozy garage-lab at night: bright-eyed corgi inventor on a stool, paw on a taped poster reading \u201cFetch the Stars.\u201d Blueprints everywhere; a miniature rocket with a chew-bone logo. Ava Byte (border collie) in the doorway, grease-smudged, soft smile. Warm lamp glow, big expressive eyes. A dented shelter tag hangs in the corner catching a starry glint. A small sticky note reads: \u201cBarkNet = satellites + lamppost beacons -> safe route home.\u201d",
+                            "duration": null,
+                            "url": null,
+                            "metadata": null
+                        },
+                        {
+                            "id": "ep1-sc1-vid",
+                            "kind": "video",
+                            "depends_on": [],
+                            "prompt": "Slow dolly across cluttered workbenches: fans whirr, pencils rattle. Corgi places a paw on \u201cFetch the Stars.\u201d He murmurs: \u201cChew-bone satellites, collar pings, lamppost beacons\u2014the city draws the line home.\u201d Door creaks; Ava enters, wiping grease, a half-smile. Their paws bump under the lamp. Cut to the dented shelter tag flashing briefly like a star. Soft score with woodwinds and a subtle heartbeat.",
+                            "duration": 15,
+                            "url": null,
+                            "metadata": null
+                        }
+                    ],
+                    "metadata": null
+                },
+                {
+                    "id": "ep1-sc2",
+                    "description": "Backyard test: a toy \u2018BarkNet\u2019 satellite deploys and tags ping briefly. The twilight smells like cut grass and solder. Ava notes a hot spot in the heat-curve plot; Corgi inhales the moment anyway, joy tempered by a red caution icon that refuses to go away.",
+                    "image_url": null,
+                    "video_url": null,
+                    "assets": [
+                        {
+                            "id": "ep1-sc2-img",
+                            "kind": "image",
+                            "depends_on": [],
+                            "prompt": "Keyframe: stubby rocket arcs from a backyard launch rail at twilight, glittering trail and chew-bone logo. Mini satellite unfolds like a pop-up flower. Corgi and Ava, goggles on, look up with awe. Tablet in Ava\u2019s paw shows a heat-curve plot with a glowing hotspot. Whimsical 3D family-film look, soft bloom.",
+                            "duration": null,
+                            "url": null,
+                            "metadata": null
+                        },
+                        {
+                            "id": "ep1-sc2-vid",
+                            "kind": "video",
+                            "depends_on": [],
+                            "prompt": "Low-angle on the homemade launch rail. \u201cThree\u2026 two\u2026 one\u2026 bark!\u201d Whoosh. Camera whips to a glittering arc; a tiny satellite blossoms. Receiver bars spike; tags chirp from distant alleys. Ava\u2019s tablet overlays a heat-curve: a bulging red island. She murmurs, \u201cThat bump worries me.\u201d Corgi, breathy: \u201cWe can cool it.\u201d Parachute pop; grass rustle; the red icon lingers in the corner of the screen.",
+                            "duration": 15,
+                            "url": null,
+                            "metadata": null
+                        }
+                    ],
+                    "metadata": null
+                },
+                {
+                    "id": "ep1-sc3",
+                    "description": "Mr. Barkley grills them in a bare conference room. He finally slides a small check\u2014but keeps his paw on it. \u201cFunds clear when I see a safety roadmap and quarterly audits. Stubborn is good. Sloppy isn\u2019t.\u201d Ava nods; Corgi, flushed, agrees. A sticky note on their prototype reads \u201cSAFETY PASS?\u201d like a dare they accept.",
+                    "image_url": null,
+                    "video_url": null,
+                    "assets": [
+                        {
+                            "id": "ep1-sc3-img",
+                            "kind": "image",
+                            "depends_on": [],
+                            "prompt": "Keyframe: gruff bulldog investor Mr. Barkley in a stark room, one brow raised; a small check half-slid across the sleek table. Corgi leans forward, shining eyes; Ava sits steady. On the prototype, a bold red sticky: \u201cSAFETY PASS?\u201d A printed line item beside the check: \u201cRoadmap + audits required.\u201d Neutral daylight, tense hope.",
+                            "duration": null,
+                            "url": null,
+                            "metadata": null
+                        },
+                        {
+                            "id": "ep1-sc3-vid",
+                            "kind": "video",
+                            "depends_on": [],
+                            "prompt": "Static wide of minimalist conference room. Barkley flips through slides, snorts, then taps the check: \u201cThis clears with a safety roadmap and quarterly audits.\u201d Corgi swallows: \u201cUnderstood.\u201d Ava slides a prototype tag; it chirps a dotted path to \u2018Home.\u2019 Barkley\u2019s eyes soften: \u201cI invest in stubborn\u2014never sloppy.\u201d Beat. He releases the check. Close on the sticky: \u201cSAFETY PASS?\u201d as a soft heartbeat hits.",
+                            "duration": 15,
+                            "url": null,
+                            "metadata": null
+                        }
+                    ],
+                    "metadata": null
+                },
+                {
+                    "id": "ep1-sc4",
+                    "description": "Montage of tiny wins. Daisy Scoop reports reunions; confetti and dusk. Corgi tapes new goals. Ava circles \u201cScale Safely\u201d twice and adds: \u201cDocument. Test. Throttle.\u201d The star map fills with little paw-lights that look suspiciously like constellations trying to form.",
+                    "image_url": null,
+                    "video_url": null,
+                    "assets": [
+                        {
+                            "id": "ep1-sc4-img",
+                            "kind": "image",
+                            "depends_on": [],
+                            "prompt": "Keyframe: Daisy Scoop (pug reporter) with a mic in a lively street as a child hugs a returned beagle. Corgi and Ava watch from the curb, humbled and glowing. Warm city dusk, confetti drift, family-film sparkle. On the garage wall, \u2018Scale Safely\u2019 is underlined twice, with small notes: \u201cDocument. Test. Throttle.\u201d The star map glows with paw-lights.",
+                            "duration": null,
+                            "url": null,
+                            "metadata": null
+                        },
+                        {
+                            "id": "ep1-sc4-vid",
+                            "kind": "video",
+                            "depends_on": [],
+                            "prompt": "Quick-cut montage: Daisy to camera, \u201cBarkNet brings pups home.\u201d Joyful reunions, blinking tags, wagging tails. Cut to the garage: Corgi taping goals; Ava adds \u201cDocument. Test. Throttle.\u201d Pencil squeak; sticky notes multiply. Hand-sketched world map fills with glowing paw-lights like a constellation. Upbeat strings; end on Corgi\u2019s quiet smile as the map keeps pulsing.",
+                            "duration": 10,
+                            "url": null,
+                            "metadata": null
+                        }
+                    ],
+                    "metadata": null
+                }
+            ],
+            "assets": [],
+            "metadata": null
+        },
+        {
+            "id": "ep2",
+            "title": "Headwinds and Fractures",
+            "description": "Success attracts a storm. A rival dazzles, a risky call burns, ignored warnings force a desperate NDA audit, and the fallout freezes everything.",
+            "premise": null,
+            "url": null,
+            "scenes": [
+                {
+                    "id": "ep2-sc1",
+                    "description": "Wolf Byte unveils a flashier network. Investors wobble. Wolf purrs, \u201cSpeed wins,\u201d basking in neon. In the wings, Corgi mutters to Ava without looking away, \u201cWe can\u2019t outrun physics.\u201d Her jaw tightens at a banner behind Wolf: UNMATCHED SAFETY.",
+                    "image_url": null,
+                    "video_url": null,
+                    "assets": [
+                        {
+                            "id": "ep2-sc1-img",
+                            "kind": "image",
+                            "depends_on": [],
+                            "prompt": "Keyframe: sleek greyhound mogul Wolf Byte on a glossy stage, neon glinting off a huge world map. In the wings, Corgi watches, jaw set; Ava beside him, paw on a tablet, tension in her grip. Cool blue tones, high-tech spectacle; on the screen: \u201cUNMATCHED SAFETY.\u201d",
+                            "duration": null,
+                            "url": null,
+                            "metadata": null
+                        },
+                        {
+                            "id": "ep2-sc1-vid",
+                            "kind": "video",
+                            "depends_on": [],
+                            "prompt": "Crane over a flashy launch event. Wolf: \u201cSpeed wins.\u201d Applause cracks like thunder. Cut to Corgi and Ava in wing-light. Corgi, low: \u201cYou can\u2019t outrun heat.\u201d Investor text bubbles pop: \u2018Reconsider?\u2019 Wolf\u2019s satellites streak across an animated globe; a banner: \u2018UNMATCHED SAFETY\u2019. Tight on Ava\u2019s clenched jaw. Smash cut to their garage door rolling down like a visor.",
+                            "duration": 15,
+                            "url": null,
+                            "metadata": null
+                        }
+                    ],
+                    "metadata": null
+                },
+                {
+                    "id": "ep2-sc2",
+                    "description": "Morning. Against Ava\u2019s written objection, Corgi signs \u2018Batch 14\u2014HOT SHIP\u2019 to meet a launch slot. Hours later, factory alarms scream. Steam and the sharp sting of singed plastic fill the air. A worker yelps; a paw pad is reddened, trembling. Ava slams the stop button and wraps the paw with cooling gel. \u201cThis is on us.\u201d Corgi\u2019s breath shudders as he yanks the main breaker\u2014too late to avoid a scare, just in time to prevent worse.",
+                    "image_url": null,
+                    "video_url": null,
+                    "assets": [
+                        {
+                            "id": "ep2-sc2-img",
+                            "kind": "image",
+                            "depends_on": [],
+                            "prompt": "Keyframe: red alarm lights strobing over a small factory line. A clipboard stamped \u201cBatch 14\u2014HOT SHIP\u201d in Corgi\u2019s paw. Ava hammers the big red stop button, eyes fierce. A worker cradles a reddened paw pad; cooling gel glistens. Steam curls; a countdown clock looms; a faint scorch mark on a conveyor guide.",
+                            "duration": null,
+                            "url": null,
+                            "metadata": null
+                        },
+                        {
+                            "id": "ep2-sc2-vid",
+                            "kind": "video",
+                            "depends_on": [],
+                            "prompt": "Handheld, chaotic. Cut-in of Corgi signing a form: \u2018Batch 14\u2014HOT SHIP.\u2019 Smash to sirens, steam, fans roaring. Thermal overlay spikes along a run of tags. A worker yelps; close on a reddened paw pad. Ava: \u201cKill it, now!\u201d Corgi yanks the breaker; machines whine down. The room exhales. Ava\u2019s paws tremble as she tapes a cold pack. Corgi\u2019s voice, small: \u201cI made the call.\u201d A tag casing curls slightly as it cools.",
+                            "duration": 15,
+                            "url": null,
+                            "metadata": null
+                        }
+                    ],
+                    "metadata": null
+                },
+                {
+                    "id": "ep2-sc3",
+                    "description": "Ava escalates internally\u2014ignored. Issue tracker: red tickets. Board email: no reply. She drafts a memo to Corgi: \u201802:14 AM\u2014If we can\u2019t pause, I\u2019ll seek an independent safety audit under NDA. It protects users and our IP.\u2019 It sits unopened in his inbox while he scrambles supplier calls. The cooling fans never quite drown out the ping of unanswered messages.",
+                    "image_url": null,
+                    "video_url": null,
+                    "assets": [
+                        {
+                            "id": "ep2-sc3-img",
+                            "kind": "image",
+                            "depends_on": [],
+                            "prompt": "Keyframe: dim operations desk lit by multiple monitors. One shows an issue tracker flooded with red tickets; another shows an email draft to \u2018Corgi\u2019 with subject: \u201c02:14 AM\u2014Proposed NDA safety audit.\u201d Ava\u2019s paw hovers over \u2018Send\u2019; a board email in the corner marked \u201cNo Response.\u201d Cooling fans blur the background.",
+                            "duration": null,
+                            "url": null,
+                            "metadata": null
+                        },
+                        {
+                            "id": "ep2-sc3-vid",
+                            "kind": "video",
+                            "depends_on": [],
+                            "prompt": "Close-ups: red tickets populate an issue tracker; an unanswered board email; a Slack-style ping ignored under supplier hold music. Ava types: \u201c02:14 AM\u2014If we can\u2019t pause, I\u2019ll engage Greyline Safety Labs under NDA for an independent thermal audit. Protect users; protect IP; stop Batch 15.\u201d She hits send. Cut to Corgi on the phone, eyes on shipping spreadsheets as the memo notification slides by unopened. Fans whirr; clock ticks loud.",
+                            "duration": 15,
+                            "url": null,
+                            "metadata": null
+                        }
+                    ],
+                    "metadata": null
+                },
+                {
+                    "id": "ep2-sc4",
+                    "description": "Two days later. Audit logs reveal Greyline Safety Labs (a Wolf subsidiary). Corgi\u2019s ears drop. \u201cYou sent our schematics\u2026 to them.\u201d Ava holds her ground, voice raw: \u201cTo their safety wing, under NDA, to stop another burnt paw. I tried every door inside first.\u201d He stares at the unopened 02:14 AM memo in his inbox. Hurt stiffens his shoulders more than anger does.",
+                    "image_url": null,
+                    "video_url": null,
+                    "assets": [
+                        {
+                            "id": "ep2-sc4-img",
+                            "kind": "image",
+                            "depends_on": [],
+                            "prompt": "Keyframe: a holographic audit log hangs between Corgi and Ava; highlighted recipient: \u201cGreyline Safety Labs (subsidiary).\u201d The inbox preview shows an unopened email: \u201c02:14 AM\u2014Proposed NDA safety audit.\u201d Corgi\u2019s ears droop; Ava\u2019s eyes are wet but steady. The glow draws a cold line between them; a scorched tag casing on the desk.",
+                            "duration": null,
+                            "url": null,
+                            "metadata": null
+                        },
+                        {
+                            "id": "ep2-sc4-vid",
+                            "kind": "video",
+                            "depends_on": [],
+                            "prompt": "Cursor opens audit logs; a signature ping ties to Greyline Safety Labs. Corgi, quiet: \u201cYou sent them our bones.\u201d Ava: \u201cI sent a thermals dataset and schematics under NDA after the board ignored me. One more hot batch and we hurt someone worse.\u201d He clicks the unopened \u201802:14 AM\u2019 memo; winces. Silence. A prototype tag chirps once, then falls still. He whispers, \u201cI can\u2019t look at you right now.\u201d She nods, swallows, leaves. Door latch clicks like a period.",
+                            "duration": 15,
+                            "url": null,
+                            "metadata": null
+                        }
+                    ],
+                    "metadata": null
+                },
+                {
+                    "id": "ep2-sc5",
+                    "description": "Fallout. Daisy corners Corgi outside the factory. \u201cI have a story that could crater you by morning. A worker\u2019s paw burned. Did you push a hot batch?\u201d He nods once. \u201cYes.\u201d She lowers her mic. \u201cGive me documentation of the fix by sunrise, or I run it.\u201d Across town, Barkley freezes funding pending an external audit: \u201cGovernance isn\u2019t a sticker. It\u2019s the steering wheel.\u201d",
+                    "image_url": null,
+                    "video_url": null,
+                    "assets": [
+                        {
+                            "id": "ep2-sc5-img",
+                            "kind": "image",
+                            "depends_on": [],
+                            "prompt": "Keyframe: outside the factory at dusk, Daisy Scoop holds a mic but not too close; Corgi stares at the concrete, shoulders heavy. Inset phone screen: Barkley\u2019s text\u2014\u201cFunding frozen pending external audit\u2014effective now.\u201d A safety poster flaps on the wall. Sodium lights, long shadows.",
+                            "duration": null,
+                            "url": null,
+                            "metadata": null
+                        },
+                        {
+                            "id": "ep2-sc5-vid",
+                            "kind": "video",
+                            "depends_on": [],
+                            "prompt": "Shoulder-mounted camera. Daisy: \u201cA worker was hurt. Did you approve Batch 14 hot?\u201d Corgi, after a beat: \u201cI did.\u201d She exhales, lowers the mic: \u201cSend me your corrective plan before sunrise. If you don\u2019t, I publish.\u201d Cross-cut: Barkley on speakerphone: \u201cFunds frozen until an external audit clears you. Governance is the steering wheel, pup.\u201d Quick shots: factory floor idle; a calendar with tomorrow circled in red.",
+                            "duration": 15,
+                            "url": null,
+                            "metadata": null
+                        }
+                    ],
+                    "metadata": null
+                },
+                {
+                    "id": "ep2-sc6",
+                    "description": "Two weeks later, rooftop. The city hums. They sit apart for a while. Corgi turns the dented shelter tag in his paws. \u201cThe door clicked like this,\u201d he says, barely audible. Ava starts, stops. \u201cI filed the NDA because I couldn\u2019t watch another paw blister.\u201d Wind lifts their fur. He nods once, eyes on the dark. \u201cI read your memo.\u201d Silence holds like gauze.",
+                    "image_url": null,
+                    "video_url": null,
+                    "assets": [
+                        {
+                            "id": "ep2-sc6-img",
+                            "kind": "image",
+                            "depends_on": [],
+                            "prompt": "Keyframe: moonlit rooftop, skyline like constellations below. Corgi sits with a dented shelter tag in his paw; Ava stands a few paces away, wind ruffling fur. Blue cool tones, distance and ache; two long shadows almost touch.",
+                            "duration": null,
+                            "url": null,
+                            "metadata": null
+                        },
+                        {
+                            "id": "ep2-sc6-vid",
+                            "kind": "video",
+                            "depends_on": [],
+                            "prompt": "Slow push-in. Ambient city hum, a faint clink of the shelter tag against the rail. Corgi: \u201cWhen I was left\u2026 the door sounded like this.\u201d He flicks the tag; metal ticks. Ava: \u201cI filed the NDA after the board went silent. I wanted a stop sign you\u2019d have to see.\u201d He nods without looking up: \u201cI saw it. Late.\u201d They sit, not touching, breaths syncing. The scene ends on the shared quiet.",
+                            "duration": 15,
+                            "url": null,
+                            "metadata": null
+                        }
+                    ],
+                    "metadata": null
+                },
+                {
+                    "id": "ep2-sc7",
+                    "description": "The pivot. Whiteboard: \u2018Homespan\u2019. Ava enumerates safety practices: verified chain-of-custody from factory to fur; adaptive heat throttling firmware; open audit trails; dual-signoff releases; public status pages; big red kill switch. Daisy agrees to hold her story 24 hours if they publish the audits. Barkley signs a \u2018Safety Charter\u2019 with governance seats. Corgi, steady: \u201cWe ship nothing we can\u2019t sleep beside.\u201d",
+                    "image_url": null,
+                    "video_url": null,
+                    "assets": [
+                        {
+                            "id": "ep2-sc7-img",
+                            "kind": "image",
+                            "depends_on": [],
+                            "prompt": "Keyframe: bright morning in the garage. \u2018Homespan\u2019 circled on a whiteboard with enumerated practices: \u2018Chain-of-custody,\u2019 \u2018Heat Throttling,\u2019 \u2018Open Audits,\u2019 \u2018Dual-Signoff,\u2019 \u2018Status Pages,\u2019 \u2018Kill Switch.\u2019 Ava is diagramming; Corgi holds a marker, listening. Daisy places a camera on the table; Barkley slides a \u2018Safety Charter\u2019 across with governance seats highlighted.",
+                            "duration": null,
+                            "url": null,
+                            "metadata": null
+                        },
+                        {
+                            "id": "ep2-sc7-vid",
+                            "kind": "video",
+                            "depends_on": [],
+                            "prompt": "Montage beats: Ava writes \u201cHomespan\u201d then numbers 1\u20136: chain-of-custody, heat throttling, open audits, dual-signoff, public status, kill switch. Daisy: \u201cI\u2019ll hold twenty-four hours if audits go live.\u201d Barkley taps a document: \u201cTwo independent safety directors. Veto on launches.\u201d Corgi: \u201cDeal. We ship nothing we can\u2019t sleep beside.\u201d Inserts: sealing tamper-evident bags, firmware slider testing thermal limits, a big red switch clunking into place.",
+                            "duration": 15,
+                            "url": null,
+                            "metadata": null
+                        }
+                    ],
+                    "metadata": null
+                }
+            ],
+            "assets": [],
+            "metadata": null
+        },
+        {
+            "id": "ep3",
+            "title": "Fetch the Stars",
+            "description": "Homespan scales. A regulatory speedbump, a rival\u2019s public stumble, and a near-miss caught by new protocols prove growth. Wealth follows purpose\u2014and gets given away.",
+            "premise": null,
+            "url": null,
+            "scenes": [
+                {
+                    "id": "ep3-sc1",
+                    "description": "Regulatory speedbump. A city agency halts installs over chain-of-custody questions. Ava walks them through sealed tag bags and scan-to-assign protocols. A shipment delay forces Corgi to call shelters and prioritize the worst cases by hand. He owns the earlier burn publicly on Daisy\u2019s stream: \u201cMy call hurt someone. Our process now prevents my next bad call from hurting anyone else.\u201d",
+                    "image_url": null,
+                    "video_url": null,
+                    "assets": [
+                        {
+                            "id": "ep3-sc1-img",
+                            "kind": "image",
+                            "depends_on": [],
+                            "prompt": "Keyframe: municipal office with binders and a stern inspector. Ava opens a tamper-evident bag showing a tag with a QR chain-of-custody seal; a tablet displays \u2018scan-to-assign\u2019 steps. Corgi on a video call with shelter staff, sticky notes ranking urgency on the wall. Tone: pragmatic, earnest.",
+                            "duration": null,
+                            "url": null,
+                            "metadata": null
+                        },
+                        {
+                            "id": "ep3-sc1-vid",
+                            "kind": "video",
+                            "depends_on": [],
+                            "prompt": "Documentary style. Inspector: \u201cProve provenance.\u201d Ava scans a sealed tag; a green check shows chain-of-custody. Cut to Corgi on Daisy\u2019s live stream: \u201cI approved a hot batch and a worker was hurt. We built gates so I can\u2019t do that again.\u201d Cross-cuts: delayed crates, Corgi re-prioritizing installs with shelters. The inspector finally nods: \u201cProvisional approval.\u201d",
+                            "duration": 15,
+                            "url": null,
+                            "metadata": null
+                        }
+                    ],
+                    "metadata": null
+                },
+                {
+                    "id": "ep3-sc2",
+                    "description": "Humbling moment for Wolf. At a shelter demo, his \u2018unmatched safety\u2019 tag throws a false-cool reading; a director lifts a pup and shows a warming collar. \u201cReadings lie when you don\u2019t calibrate in fur,\u201d she says. Cameras catch Wolf swallowing pride. Later, he signs a private note to Corgi: \u2018Respect the work. We\u2019re withdrawing the claims.\u2019",
+                    "image_url": null,
+                    "video_url": null,
+                    "assets": [
+                        {
+                            "id": "ep3-sc2-img",
+                            "kind": "image",
+                            "depends_on": [],
+                            "prompt": "Keyframe: shelter lobby demo. Wolf Byte holds a glossy tag before a crowd; a shelter director holds a small pup, revealing a collar with a heat haze. A screen shows \u2018Safe 34\u00b0C\u2019 while a handheld sensor reads 40\u00b0C. Wolf\u2019s sleek confidence falters. Volunteers look concerned; dogs peer up.",
+                            "duration": null,
+                            "url": null,
+                            "metadata": null
+                        },
+                        {
+                            "id": "ep3-sc2-vid",
+                            "kind": "video",
+                            "depends_on": [],
+                            "prompt": "Shelter fluorescent lights hum. Wolf grins at a demo: \u201cAlways cool.\u201d A director frowns, waves a calibrated sensor: it beeps hot. She says, \u201cFur insulates. Your model doesn\u2019t.\u201d Murmurs ripple. Wolf swallows, nods to his team. Cut to his paw signing a note: \u201cWe\u2019ll withdraw the safety patent claims.\u201d He looks out a rain-specked window, quiet.",
+                            "duration": 15,
+                            "url": null,
+                            "metadata": null
+                        }
+                    ],
+                    "metadata": null
+                },
+                {
+                    "id": "ep3-sc3",
+                    "description": "Boardroom. An astronomical buyout offer sits on glossy paper. Wolf, subdued now, slides the patent withdrawal across. The human executive asks them to name a price. Corgi glances at Ava, then closes the folder gently: \u201cWe\u2019re not a store. We\u2019re a shelter with satellites.\u201d The room quiets; respect replaces pressure.",
+                    "image_url": null,
+                    "video_url": null,
+                    "assets": [
+                        {
+                            "id": "ep3-sc3-img",
+                            "kind": "image",
+                            "depends_on": [],
+                            "prompt": "Keyframe: polished boardroom with a breathtaking city view. A contract with a huge number. Corgi pushes it back; Ava\u2019s paw rests near his. Wolf offers a slim folder labeled \u201cPatent Withdrawal.\u201d Cool daylight, restrained posture, dignity.",
+                            "duration": null,
+                            "url": null,
+                            "metadata": null
+                        },
+                        {
+                            "id": "ep3-sc3-vid",
+                            "kind": "video",
+                            "depends_on": [],
+                            "prompt": "Tracking around a glossy table. Executive: \u201cName your price.\u201d Wolf slides a folder: \u201cWe\u2019re withdrawing.\u201d Corgi closes the offer: \u201cWe\u2019re a shelter with satellites.\u201d Beat. Barkley\u2019s soft chuckle from the doorway. The executive nods, almost relieved. Camera lifts to skyline.",
+                            "duration": 15,
+                            "url": null,
+                            "metadata": null
+                        }
+                    ],
+                    "metadata": null
+                },
+                {
+                    "id": "ep3-sc4",
+                    "description": "Global activation. Paw-lights bloom across the world. A near-miss pings: a tag reports a fast temp climb on a shaggy husky. Firmware throttles beacon duty-cycle; route reroutes via cooler streets. Ava watches the heat-curve settle, her shoulders drop. Daisy narrates: \u201cSafety isn\u2019t a promise; it\u2019s a practice.\u201d",
+                    "image_url": null,
+                    "video_url": null,
+                    "assets": [
+                        {
+                            "id": "ep3-sc4-img",
+                            "kind": "image",
+                            "depends_on": [],
+                            "prompt": "Keyframe: operations room with a glowing world map filling with pulsing paw-lights. An inset shows a heat-curve spike on a husky\u2019s tag, then a settling line after \u2018Throttle Activated\u2019. Ava and Corgi stand side by side, breath held. Daisy with a small camera in the corner, narration posture.",
+                            "duration": null,
+                            "url": null,
+                            "metadata": null
+                        },
+                        {
+                            "id": "ep3-sc4-vid",
+                            "kind": "video",
+                            "depends_on": [],
+                            "prompt": "Tight on a single blinking light, then many bloom across the globe. Alert chime: a husky\u2019s tag shows a temp spike. \u201cThrottle engaged,\u201d the UI reads; map reroutes via shaded streets. The heat-curve line eases. Ava exhales. Daisy narrates off-camera: \u201cSafety isn\u2019t a line in a deck; it\u2019s a thousand tiny brakes that work.\u201d Music rises warm and steady.",
+                            "duration": 10,
+                            "url": null,
+                            "metadata": null
+                        }
+                    ],
+                    "metadata": null
+                },
+                {
+                    "id": "ep3-sc5",
+                    "description": "Finale at the original garage. String lights trace the star map; Corgi\u2019s dented shelter tag hangs at the center like Polaris. He\u2019s named the richest dog alive\u2014and pledges most of it to shelters and open audits. \u201cRich means the lights stay on anywhere a dog is waiting.\u201d The crowd chants \u201cFound,\u201d the star map forming a constellation shaped like a paw.",
+                    "image_url": null,
+                    "video_url": null,
+                    "assets": [
+                        {
+                            "id": "ep3-sc5-img",
+                            "kind": "image",
+                            "depends_on": [],
+                            "prompt": "Keyframe: cozy garage dressed with string lights arranged to match the hand-drawn star map. Corgi on a crate podium; his dented shelter tag hangs in the middle like a star. Ava at his side; Daisy filming; Mr. Barkley clapping. Photos of reunions ring the poster; a simple banner reads \u201cFound.\u201d The lights subtly form a paw-shaped constellation.",
+                            "duration": null,
+                            "url": null,
+                            "metadata": null
+                        },
+                        {
+                            "id": "ep3-sc5-vid",
+                            "kind": "video",
+                            "depends_on": [],
+                            "prompt": "Close on the shelter tag used as a light switch; Corgi taps it\u2014string lights ripple across the star map, forming a paw constellation. The crowd cheers. He says, voice tight: \u201cMost of this money goes to shelters, training, and public audits. Rich means the lights stay on wherever someone\u2019s waiting.\u201d Ava squeezes his paw. Wolf claps once from the doorway, small smile. The camera tilts to the glowing map, then fades to a single bright pawprint.",
+                            "duration": 15,
+                            "url": null,
+                            "metadata": null
+                        }
+                    ],
+                    "metadata": null
+                }
+            ],
+            "assets": [],
+            "metadata": null
+        }
+    ],
+    "assets": [],
+    "metadata": null
+}
