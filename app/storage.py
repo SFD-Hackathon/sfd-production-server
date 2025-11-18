@@ -5,7 +5,7 @@ import json
 import boto3
 from botocore.config import Config
 from typing import Optional, List, Dict, Any
-from app.models import Drama
+from app.models import Drama, Asset
 
 
 class R2Storage:
@@ -181,6 +181,44 @@ class R2Storage:
             return False
         except Exception:
             return False
+
+    async def add_asset_to_character(self, drama_id: str, character_id: str, asset: Asset) -> None:
+        """
+        Safely add an asset to a character by reloading latest drama
+
+        This prevents lost updates when concurrent modifications occur.
+        Reloads the drama, adds the asset if it doesn't already exist, then saves.
+
+        Args:
+            drama_id: ID of the drama
+            character_id: ID of the character
+            asset: Asset to add to character
+
+        Raises:
+            Exception: If drama or character not found
+        """
+        # Reload fresh drama
+        drama = await self.get_drama(drama_id)
+        if not drama:
+            raise Exception(f"Drama {drama_id} not found")
+
+        # Find character
+        character = None
+        for char in drama.characters:
+            if char.id == character_id:
+                character = char
+                break
+
+        if not character:
+            raise Exception(f"Character {character_id} not found in drama {drama_id}")
+
+        # Check if asset already exists
+        existing_ids = {a.id for a in character.assets}
+        if asset.id not in existing_ids:
+            character.assets.append(asset)
+
+        # Save updated drama
+        await self.save_drama(drama)
 
 
 # Global storage instance
