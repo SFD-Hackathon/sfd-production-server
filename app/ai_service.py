@@ -362,7 +362,6 @@ Note: This critique focuses on the drama, character, and episode levels. Scene-l
     def generate_image(
         self,
         prompt: str,
-        aspect_ratio: str = "16:9",
         references: Optional[List[str]] = None,
         asset_id: Optional[str] = None,
     ) -> str:
@@ -371,26 +370,34 @@ Note: This critique focuses on the drama, character, and episode levels. Scene-l
 
         Args:
             prompt: Text prompt for image generation
-            aspect_ratio: Aspect ratio (e.g., "16:9", "9:16", "1:1")
-            references: Optional list of reference image URLs
+            references: Optional list of additional reference image URLs
             asset_id: Optional asset ID for context
 
         Returns:
             Image URL (markdown format) or base64 data URI
+
+        Note: Always generates 9:16 aspect ratio images with a standard reference
         """
         if not self.gemini_api_key or not self.gemini_api_base:
             raise ValueError(
                 "GEMINI_API_KEY and GEMINI_API_BASE environment variables are required"
             )
 
-        # Create aspect ratio directive
+        # Hard-coded 9:16 aspect ratio
+        aspect_ratio = "9:16"
         aspect_directive = f"ASPECT RATIO MUST BE {aspect_ratio} (width:height)"
 
         # Put aspect ratio requirement at the beginning AND end for emphasis
         full_prompt = f"CRITICAL REQUIREMENT: {aspect_directive}\n\nIMAGE CONTENT: {prompt}\n\nSTYLE: Anime style, cartoon illustration, vibrant colors, clean lines.\n\nREMINDER: {aspect_directive}"
 
-        # Build request content
+        # Build request content with text prompt
         content = [{"type": "text", "text": full_prompt}]
+
+        # Always include 9:16 reference image first
+        reference_9_16 = "https://pub-82a9c3c68d1a421f8e31796087e04132.r2.dev/9_16_reference.jpg"
+        content.append({"type": "image_url", "image_url": {"url": reference_9_16}})
+
+        # Add any additional references
         if references:
             for ref in references:
                 content.append({"type": "image_url", "image_url": {"url": ref}})
