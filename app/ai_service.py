@@ -3,6 +3,7 @@
 import os
 import re
 import base64
+import asyncio
 import httpx
 from typing import Optional, List
 from openai import AsyncOpenAI
@@ -51,10 +52,20 @@ class AIService:
         Returns:
             Generated Drama object
         """
-        system_prompt = """You are an expert short-form drama writer. Generate compelling, emotionally engaging dramas based on the user's premise.
+        # Extract episode count from premise if specified (e.g., "10 episodes")
+        import re
+        episode_match = re.search(r'(\d+)\s*episodes?', premise, re.IGNORECASE)
+        if episode_match:
+            episode_count = int(episode_match.group(1))
+            episode_guidance = f"{episode_count} episodes as specified in the premise"
+        else:
+            episode_count = None
+            episode_guidance = "2-3 episodes for a complete story arc"
+
+        system_prompt = f"""You are an expert short-form drama writer. Generate compelling, emotionally engaging dramas based on the user's premise.
 
 Guidelines:
-1. Create 2-3 episodes for a complete story arc
+1. Create {episode_guidance}
 2. Create 1-2 main characters (main: true) with depth and clear gender (male/female/other)
 3. You may add supporting characters (main: false) but limit total characters to 4-6
 4. Focus on episode-level narrative structure and story beats
@@ -75,7 +86,7 @@ Note: Scenes and assets will be generated in a later processing step. Focus on t
 
 Important:
 - Create compelling characters with depth and clear motivations
-- Develop a complete story arc across 2-3 episodes
+- Develop a complete story arc across {episode_guidance}
 - Each episode description should detail the key story beats, character developments, and emotional moments
 - Focus on narrative structure at the episode level
 
@@ -232,6 +243,11 @@ Note: Focus on drama, character, and episode levels. Scenes and assets will be h
             ],
         }
 
+        # Build formatted character list
+        nl = "\n"  # Can't use backslashes in f-string expressions
+        characters_text = nl.join(f"- {char['id']}: {char['name']} ({'Main' if char['main'] else 'Supporting'}, {char['gender']}){nl}  Description: {char['description']}{nl}  Voice: {char['voice_description']}" for char in drama_summary['characters'])
+        episodes_text = nl.join(f"{i+1}. {ep['title']}{nl}   {ep['description']}" for i, ep in enumerate(drama_summary['episodes']))
+
         user_prompt = f"""Improve this drama based on the feedback:
 
 ORIGINAL DRAMA (High-Level Structure):
@@ -240,10 +256,10 @@ Description: {drama_summary['description']}
 Premise: {drama_summary['premise']}
 
 Characters:
-{"\n".join(f"- {char['id']}: {char['name']} ({'Main' if char['main'] else 'Supporting'}, {char['gender']})\n  Description: {char['description']}\n  Voice: {char['voice_description']}" for char in drama_summary['characters'])}
+{characters_text}
 
 Episodes:
-{"\n".join(f"{i+1}. {ep['title']}\n   {ep['description']}" for i, ep in enumerate(drama_summary['episodes']))}
+{episodes_text}
 
 FEEDBACK:
 {feedback}
@@ -311,6 +327,11 @@ Focus on:
 
 Provide honest, balanced feedback that highlights both what works well and what could be improved. Focus on the high-level drama structure - scenes and visual assets will be evaluated separately."""
 
+        # Build formatted lists
+        nl = "\n"  # Can't use backslashes in f-string expressions
+        characters_text = nl.join(f"- {char.id}: {char.name} ({'Main' if char.main else 'Supporting'}, {char.gender}){nl}  Description: {char.description}{nl}  Voice: {char.voice_description}" for char in drama.characters)
+        episodes_text = nl.join(f"Episode {i+1}: {ep.title}{nl}Description: {ep.description}" for i, ep in enumerate(drama.episodes))
+
         user_prompt = f"""Please critique this short-form drama. Focus on the overall narrative structure, character arcs, episode pacing, and storytelling quality at the high level:
 
 DRAMA:
@@ -319,10 +340,10 @@ Description: {drama.description}
 Premise: {drama.premise}
 
 Characters:
-{"\n".join(f"- {char.id}: {char.name} ({'Main' if char.main else 'Supporting'}, {char.gender})\n  Description: {char.description}\n  Voice: {char.voice_description}" for char in drama.characters)}
+{characters_text}
 
 Episodes:
-{"\n".join(f"Episode {i+1}: {ep.title}\nDescription: {ep.description}" for i, ep in enumerate(drama.episodes))}
+{episodes_text}
 
 Provide a comprehensive critique focusing on:
 1. Overall story structure and narrative coherence
@@ -369,6 +390,7 @@ Note: This critique focuses on the drama, character, and episode levels. Scene-l
     ) -> str:
         """
         Helper method to generate image using Gemini and upload to R2
+        Includes retry logic with up to 2 retries (3 total attempts)
 
         Args:
             prompt: Full prompt for image generation
@@ -402,15 +424,33 @@ Note: This critique focuses on the drama, character, and episode levels. Scene-l
             "Content-Type": "application/json",
         }
 
-        # Make async API request
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(
-                f"{self.gemini_api_base}/v1/chat/completions",
-                headers=headers,
-                json=payload,
-            )
-            response.raise_for_status()
-            result = response.json()
+        # Retry logic: up to 2 retries (3 total attempts)
+        max_retries = 2
+        last_error = None
+
+        for attempt in range(max_retries + 1):
+            try:
+                # Make async API request
+                async with httpx.AsyncClient(timeout=60.0) as client:
+                    response = await client.post(
+                        f"{self.gemini_api_base}/v1/chat/completions",
+                        headers=headers,
+                        json=payload,
+                    )
+                    response.raise_for_status()
+                    result = response.json()
+
+                # If we got here, the request succeeded, break out of retry loop
+                break
+
+            except Exception as e:
+                last_error = e
+                if attempt < max_retries:
+                    print(f"Image generation attempt {attempt + 1} failed: {e}. Retrying...")
+                    await asyncio.sleep(2)  # Wait 2 seconds before retry
+                else:
+                    print(f"Image generation failed after {max_retries + 1} attempts")
+                    raise Exception(f"Image generation failed after {max_retries + 1} attempts: {last_error}")
 
         # Extract image from response
         message = result["choices"][0]["message"]["content"]
@@ -459,16 +499,18 @@ Note: This critique focuses on the drama, character, and episode levels. Scene-l
             Public R2 URL of the uploaded character image
         """
         # Build character-focused prompt using character object
-        character_prompt = f"Draw a front half-body portrait of a {character.gender} character on the reference image background: {character.description}. Show from waist up, facing forward, clear facial features, expressive eyes."
+        # Don't assume human - use the full character description which may include species
+        character_prompt = f"{character.description}. Gender: {character.gender}. Show from waist up, facing forward, clear facial features, expressive eyes."
 
         # Explicitly reference the background image for aspect ratio enforcement
-        full_prompt = f"""Draw the character on the reference image background provided.
+        full_prompt = f"""Draw this character as a front half-body portrait on the reference image background provided.
 
 CHARACTER: {character_prompt}
 
 STYLE: Anime style, cartoon illustration, vibrant colors, clean lines, detailed character design.
+IMPORTANT: If the character description mentions an animal species (like dog, cat, corgi, etc.), draw them as that animal species, NOT as a human. Preserve all species characteristics.
 
-IMPORTANT: Use the EXACT same dimensions and aspect ratio as the reference image. Draw the character portrait on that background, maintaining the vertical 9:16 portrait orientation."""
+TECHNICAL: Use the EXACT same dimensions and aspect ratio as the reference image. Draw the character portrait on that background, maintaining the vertical 9:16 portrait orientation."""
 
         # Build reference list: always include 9:16 reference first
         reference_9_16 = "https://pub-82a9c3c68d1a421f8e31796087e04132.r2.dev/9_16_reference.jpg"
