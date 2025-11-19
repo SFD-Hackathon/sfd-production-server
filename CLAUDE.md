@@ -41,6 +41,17 @@ python tests/test_drama_create.py     # Drama creation tests
 # See TESTING.md for detailed test guide
 ```
 
+### Drama Viewer (Debugging UI)
+```bash
+# Run Streamlit viewer (requires API server running)
+streamlit run viewer/app.py
+# OR use quick start script
+./run_viewer.sh
+
+# Access viewer at http://localhost:8501
+# See viewer/README.md for full documentation
+```
+
 ### Code Quality
 ```bash
 pip install black isort
