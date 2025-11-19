@@ -1,7 +1,7 @@
 """
 Image generation using Gemini API.
 
-Separate module to avoid circular imports between asset_api and generation_dag_engine.
+Separate module to avoid circular imports with hierarchical_dag_engine.
 Provides both sync and async interfaces with retry logic and R2 upload support.
 """
 
