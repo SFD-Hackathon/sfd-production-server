@@ -38,6 +38,17 @@ class Drama:
     episodes: List[Episode]
 
 
+@strawberry.type
+class DramaSummary:
+    """Lightweight drama summary for list queries"""
+    id: str
+    title: str
+    description: str
+    url: Optional[str] = None
+    character_count: int
+    episode_count: int
+
+
 # Input types for mutations
 @strawberry.input
 class CreateDramaInput:
@@ -85,46 +96,34 @@ class Query:
         )
 
     @strawberry.field
-    async def dramas(self) -> List[Drama]:
-        """Get all dramas"""
-        drama_ids = await storage.list_dramas()
-        dramas = []
+    async def dramas(self, limit: Optional[int] = 10) -> List[DramaSummary]:
+        """
+        Get all dramas (lightweight summary with pagination)
 
-        for drama_id in drama_ids:
-            drama_pydantic = await storage.get_drama(drama_id)
-            if drama_pydantic:
-                dramas.append(
-                    Drama(
-                        id=drama_pydantic.id,
-                        title=drama_pydantic.title,
-                        description=drama_pydantic.description,
-                        premise=drama_pydantic.premise,
-                        url=drama_pydantic.url,
-                        characters=[
-                            Character(
-                                id=char.id,
-                                name=char.name,
-                                description=char.description,
-                                gender=char.gender,
-                                voice_description=char.voice_description,
-                                main=char.main,
-                                url=char.url,
-                            )
-                            for char in drama_pydantic.characters
-                        ],
-                        episodes=[
-                            Episode(
-                                id=ep.id,
-                                title=ep.title,
-                                description=ep.description,
-                                url=ep.url,
-                            )
-                            for ep in drama_pydantic.episodes
-                        ],
-                    )
+        Args:
+            limit: Maximum number of dramas to return (default: 10, max: 100)
+        """
+        # Cap limit at 100
+        limit = min(limit or 10, 100)
+
+        # Use storage's built-in pagination
+        dramas_list, _ = await storage.list_dramas(limit=limit)
+
+        # Convert to summaries (lightweight - no nested objects)
+        summaries = []
+        for drama_pydantic in dramas_list:
+            summaries.append(
+                DramaSummary(
+                    id=drama_pydantic.id,
+                    title=drama_pydantic.title,
+                    description=drama_pydantic.description,
+                    url=drama_pydantic.url,
+                    character_count=len(drama_pydantic.characters),
+                    episode_count=len(drama_pydantic.episodes),
                 )
+            )
 
-        return dramas
+        return summaries
 
     @strawberry.field
     async def cover_photo(self, drama_id: str) -> Optional[str]:
