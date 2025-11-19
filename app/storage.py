@@ -2,6 +2,7 @@
 
 import os
 import json
+import hashlib
 import boto3
 from botocore.config import Config
 from typing import Optional, List, Dict, Any, Tuple

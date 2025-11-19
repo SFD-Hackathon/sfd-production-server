@@ -1,6 +1,6 @@
 """Drama management endpoints"""
 
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Query
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Query, Response
 from typing import Union
 import time
 import random
@@ -180,10 +180,11 @@ async def process_drama_critique(job_id: str, drama_id: str):
         job_manager.update_job_status(job_id, JobStatus.failed, error=str(e))
 
 
-@router.post("", response_model=Union[Drama, JobResponse], status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=Union[Drama, JobResponse])
 async def create_drama(
     request: Union[CreateFromPremise, CreateFromJSON],
     background_tasks: BackgroundTasks,
+    response: Response,
 ):
     """
     Create a new drama (supports two modes).
@@ -206,6 +207,9 @@ async def create_drama(
         # Queue background task
         background_tasks.add_task(process_drama_generation, job_id, drama_id, request.premise)
 
+        # Set response status to 202 Accepted
+        response.status_code = status.HTTP_202_ACCEPTED
+
         # Return 202 Accepted with job info
         return JobResponse(
             dramaId=drama_id,
@@ -215,6 +219,7 @@ async def create_drama(
         )
     else:
         # Sync mode - save provided drama
+        response.status_code = status.HTTP_201_CREATED
         drama = request.drama
         await storage.save_drama(drama)
         return drama
