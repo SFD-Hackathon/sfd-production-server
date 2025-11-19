@@ -186,19 +186,13 @@ async def create_drama(
     background_tasks: BackgroundTasks,
 ):
     """
-    Create a new drama
+    Create a new drama (supports two modes).
 
-    Create a drama from either a text premise (async, queued for AI generation)
-    or a complete JSON object (sync).
+    **Mode 1 (Async)**: Provide "premise" field → AI generates drama + character images + cover image → Returns job ID (202)
+    **Mode 2 (Sync)**: Provide "drama" field → Saves drama as-is → Returns drama object (201)
 
-    **Async Mode (from premise):**
-    - Returns immediately with 202 Accepted
-    - Job is queued for GPT-5 generation (30-60 seconds)
-    - Use GET /dramas/{id}/jobs/{jobId} to check status
-
-    **Sync Mode (from JSON):**
-    - Returns immediately with 201 Created
-    - Drama is stored directly without AI generation
+    Mode 1 generates: ✅ Drama structure, ✅ Character portraits, ✅ Cover image
+    Mode 1 does NOT generate: ❌ Scene assets (use POST /dramas/{id}/generate)
     """
     # Check if this is premise-based (async) or JSON-based (sync)
     if isinstance(request, CreateFromPremise) or hasattr(request, "premise"):
@@ -356,17 +350,11 @@ async def improve_drama(
 @router.post("/{drama_id}/generate", response_model=JobResponse, status_code=status.HTTP_202_ACCEPTED)
 async def generate_drama_assets(drama_id: str, background_tasks: BackgroundTasks):
     """
-    Generate all assets for a drama
+    Generate all scene and episode assets for a drama (excludes character assets).
 
-    Triggers asset generation jobs for all assets in the drama hierarchy
-    (character images, character assets, scene storyboards, scene assets).
-
-    Uses the hierarchical DAG executor to:
-    - h=1: Generate character images and episodes (parallel)
-    - h=2: Generate character assets and scenes (parallel, depends on h=1)
-    - h=3: Generate scene assets (parallel, depends on h=2)
-
-    Returns immediately with a parent job ID. Poll job status to track progress.
+    Returns job ID immediately. Character images must already exist (from POST /dramas).
+    Generates scene storyboards and video clips using hierarchical DAG execution.
+    Poll job status: GET /dramas/{dramaId}/jobs/{jobId}
     """
     # Check if drama exists
     exists = await storage.drama_exists(drama_id)
@@ -385,20 +373,68 @@ async def generate_drama_assets(drama_id: str, background_tasks: BackgroundTasks
     # Queue background task for DAG execution
     async def execute_dag_background():
         try:
-            from app.hierarchical_dag_engine import HierarchicalDAGExecutor
+            from app.hierarchical_dag_engine import HierarchicalDAGExecutor, NodeType
+            import logging
+
+            logger = logging.getLogger(__name__)
 
             # Get drama
             drama = await storage.get_drama(drama_id)
             if not drama:
                 raise Exception(f"Drama {drama_id} not found")
 
-            # Execute DAG
+            # Create executor and build full DAG
             executor = HierarchicalDAGExecutor(
                 drama=drama,
                 user_id="10000",
                 project_name=drama_id
             )
-            result = executor.execute_dag()
+
+            # Build full hierarchical DAG
+            dag = executor.build_hierarchical_dag()
+
+            # Filter to only episode branch (episodes, scenes, scene_assets)
+            # Exclude character branch (characters, character_assets)
+            filtered_nodes = {
+                node_id: node
+                for node_id, node in executor.nodes.items()
+                if node.node_type in NodeType.EPISODE_BRANCH
+            }
+
+            # Update executor with filtered nodes
+            executor.nodes = filtered_nodes
+
+            # Filter DAG dependencies to only include nodes that exist
+            filtered_dag = {
+                node_id: [dep for dep in deps if dep in filtered_nodes]
+                for node_id, deps in dag.items()
+                if node_id in filtered_nodes
+            }
+
+            logger.info(f"Filtered DAG to {len(filtered_nodes)} episode-related nodes")
+
+            # Execute filtered DAG manually (don't call execute_dag which rebuilds)
+            # Get execution order
+            levels = executor.topological_sort(filtered_dag)
+
+            # Get or create jobs
+            executor.get_or_create_jobs(resume=False)
+
+            # Track dependency results
+            dependency_results = {}
+
+            # Execute level by level
+            for level_index, level_node_ids in enumerate(levels):
+                logger.info(f"Executing level {level_index}: {len(level_node_ids)} nodes")
+
+                # Get nodes for this level
+                level_nodes = [executor.nodes[node_id] for node_id in level_node_ids]
+
+                # Execute level in parallel
+                level_results = executor.execute_level(level_nodes, dependency_results)
+
+            # Get final status
+            result = executor.get_execution_status()
 
             # Update job with results
             job_manager.update_job_status(
