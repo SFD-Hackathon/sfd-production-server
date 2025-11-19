@@ -39,6 +39,21 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
+# Valid node types in hierarchical DAG
+class NodeType:
+    """Node types for hierarchical drama generation DAG."""
+    CHARACTER = "character"           # h=1: Character portrait
+    EPISODE = "episode"               # h=1: Episode (placeholder)
+    CHARACTER_ASSET = "character_asset"  # h=2: Character asset (video/image)
+    SCENE = "scene"                   # h=2: Scene storyboard
+    SCENE_ASSET = "scene_asset"       # h=3: Scene asset (video/image clip)
+
+    # Branch groupings
+    CHARACTER_BRANCH = {CHARACTER, CHARACTER_ASSET}
+    EPISODE_BRANCH = {EPISODE, SCENE, SCENE_ASSET}
+    ALL = {CHARACTER, EPISODE, CHARACTER_ASSET, SCENE, SCENE_ASSET}
+
+
 class DAGExecutionError(Exception):
     """DAG execution error."""
     pass
