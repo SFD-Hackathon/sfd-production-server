@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import routers
-from app.routers import dramas, jobs, characters, episodes, scenes, assets
+from app.routers import dramas, jobs, characters, episodes, scenes, assets, asset_library
 
 # Version
 VERSION = "1.0.0"
@@ -76,6 +76,7 @@ app.include_router(characters.router, prefix="/dramas", tags=["Characters"])
 app.include_router(episodes.router, prefix="/dramas", tags=["Episodes"])
 app.include_router(scenes.router, prefix="/dramas", tags=["Scenes"])
 app.include_router(assets.router, prefix="/dramas", tags=["Assets"])
+app.include_router(asset_library.router, prefix="/asset-library", tags=["Asset Library"])
 
 
 # Health check endpoint

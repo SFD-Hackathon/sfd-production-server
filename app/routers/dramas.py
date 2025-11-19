@@ -353,28 +353,70 @@ async def improve_drama(
     )
 
 
-@router.post("/{drama_id}/generate", status_code=status.HTTP_202_ACCEPTED)
-async def generate_drama_assets(drama_id: str):
+@router.post("/{drama_id}/generate", response_model=JobResponse, status_code=status.HTTP_202_ACCEPTED)
+async def generate_drama_assets(drama_id: str, background_tasks: BackgroundTasks):
     """
     Generate all assets for a drama
 
     Triggers asset generation jobs for all assets in the drama hierarchy
-    (drama assets, character assets, episode assets, scene assets).
+    (character images, character assets, scene storyboards, scene assets).
 
-    **Status:** Not implemented yet - placeholder for future asset generation
+    Uses the hierarchical DAG executor to:
+    - h=1: Generate character images and episodes (parallel)
+    - h=2: Generate character assets and scenes (parallel, depends on h=1)
+    - h=3: Generate scene assets (parallel, depends on h=2)
+
+    Returns immediately with a parent job ID. Poll job status to track progress.
     """
-    # TODO: Implement asset generation logic
-    # This will:
-    # 1. Traverse all assets in the drama
-    # 2. For each asset without a URL, create a generation job
-    # 3. Queue jobs for image/video generation
-    # 4. Return list of created job IDs
+    # Check if drama exists
+    exists = await storage.drama_exists(drama_id)
+    if not exists:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "Drama not found", "message": f"Drama {drama_id} not found"},
+        )
 
-    return {
-        "message": "Asset generation not implemented yet",
-        "dramaId": drama_id,
-        "status": "not_implemented"
-    }
+    # Generate job ID for the parent DAG job
+    job_id = generate_id("job")
+
+    # Create a placeholder job (will be replaced by DAG executor's parent job)
+    job_manager.create_job(job_id, drama_id, JobType.generate_drama)
+
+    # Queue background task for DAG execution
+    async def execute_dag_background():
+        try:
+            from app.hierarchical_dag_engine import HierarchicalDAGExecutor
+
+            # Get drama
+            drama = await storage.get_drama(drama_id)
+            if not drama:
+                raise Exception(f"Drama {drama_id} not found")
+
+            # Execute DAG
+            executor = HierarchicalDAGExecutor(
+                drama=drama,
+                user_id="10000",
+                project_name=drama_id
+            )
+            result = executor.execute_dag()
+
+            # Update job with results
+            job_manager.update_job_status(
+                job_id,
+                JobStatus.completed if result["status"] == "completed" else JobStatus.failed,
+                result=result
+            )
+        except Exception as e:
+            job_manager.update_job_status(job_id, JobStatus.failed, error=str(e))
+
+    background_tasks.add_task(execute_dag_background)
+
+    return JobResponse(
+        dramaId=drama_id,
+        jobId=job_id,
+        status=JobStatus.pending,
+        message=f"Drama asset generation DAG queued. Check status at: https://api.shortformdramas.com/dramas/{drama_id}/jobs/{job_id}",
+    )
 
 
 @router.post("/{drama_id}/critic", response_model=CriticResponse, status_code=status.HTTP_202_ACCEPTED)
@@ -447,9 +489,10 @@ async def process_character_audition_video(job_id: str, drama_id: str, character
         if not character:
             raise Exception(f"Character {character_id} not found in drama {drama_id}")
 
-        # Check if character has image
+        # Note: Character image is optional - if present, it can be used as reference
+        # If not present, video will be generated from character description alone
         if not character.url:
-            raise Exception(f"Character {character_id} does not have an image. Generate character image first.")
+            print(f"⚠️  Character {character_id} does not have an image. Generating video from description only.")
 
         # Generate audition video (modifies character.assets in-place)
         ai_service = get_ai_service()
@@ -470,6 +513,10 @@ async def process_character_audition_video(job_id: str, drama_id: str, character
 
         # Safely add asset using storage method (prevents lost updates)
         await storage.add_asset_to_character(drama_id, character_id, video_asset)
+
+        # Log generation success with paths
+        local_path = video_asset.url if hasattr(video_asset, 'url') and video_asset.url else "N/A"
+        print(f"✓ Video generation completed for {character.name}. local_path: {local_path}, public_url: {video_url}")
 
         # Update job status to completed
         job_manager.update_job_status(
@@ -538,7 +585,8 @@ async def generate_character_audition_video(
     Generate character audition video
 
     Queue an async job to generate a 10-second audition video for a specific character.
-    The character must have an image already generated (used as reference for the video).
+    If the character has an image, it will be used as a reference for the video.
+    Otherwise, the video will be generated from the character description.
 
     This endpoint can be used to:
     - Generate audition video for a character that doesn't have one
@@ -567,12 +615,7 @@ async def generate_character_audition_video(
             detail={"error": "Character not found", "message": f"Character {character_id} not found"},
         )
 
-    # Check if character has image
-    if not character.url:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"error": "Character image required", "message": f"Character {character_id} must have an image before generating audition video"},
-        )
+    # Note: Character image is optional - if present, it will be used as reference
 
     # Generate job ID
     job_id = generate_id("job")
