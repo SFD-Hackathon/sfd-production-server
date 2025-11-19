@@ -841,3 +841,70 @@ async def generate_character_audition_video(
         status=JobStatus.pending,
         message=f"Character audition video generation queued. Check status at: https://api.shortformdramas.com/dramas/{drama_id}/jobs/{job_id}",
     )
+
+
+@router.post("/{drama_id}/cover_photo", response_model=Drama)
+async def generate_cover_photo(drama_id: str):
+    """
+    Generate drama cover photo featuring main characters
+
+    **Prerequisites:**
+    - All main characters must have images generated first
+    - Call POST /dramas/{drama_id}/characters/{character_id}/generate for each main character
+
+    **Process:**
+    1. Fetches the drama and validates all main characters have images
+    2. Generates a cover image featuring the main characters
+    3. Uploads to R2 storage
+    4. Updates drama.url with the cover photo URL
+
+    **Returns:**
+    - Updated Drama object with cover photo URL in the `url` field
+
+    **Example:**
+    ```
+    POST /dramas/drama_123/cover_photo
+    ```
+    """
+    # Get drama
+    drama = await storage.get_drama(drama_id)
+    if not drama:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Drama {drama_id} not found"
+        )
+
+    # Check that all main characters have images
+    main_characters = [char for char in drama.characters if char.main]
+    if not main_characters:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Drama must have at least one main character"
+        )
+
+    characters_without_images = [char.name for char in main_characters if not char.url]
+    if characters_without_images:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"All main characters must have images generated first. Missing images for: {', '.join(characters_without_images)}"
+        )
+
+    # Generate cover image
+    ai_service = get_ai_service()
+    try:
+        cover_url = await ai_service.generate_drama_cover_image(
+            drama_id=drama_id,
+            drama=drama,
+        )
+
+        # Update drama with cover URL
+        drama.url = cover_url
+        await storage.save_drama(drama)
+
+        return drama
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate cover photo: {str(e)}"
+        )
