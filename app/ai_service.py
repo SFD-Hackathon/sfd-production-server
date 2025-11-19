@@ -462,7 +462,7 @@ Note: This critique focuses on the drama, character, and episode levels. Scene-l
         Returns:
             Public R2 URL of the uploaded image
         """
-        if not self.nano_banana_api_key or not self.gemini_api_base:
+        if not self.nano_banana_api_key or not self.nano_banana_api_base:
             raise ValueError(
                 "NANO_BANANA_API_KEY and NANO_BANANA_API_BASE environment variables are required"
             )
@@ -495,7 +495,7 @@ Note: This critique focuses on the drama, character, and episode levels. Scene-l
                 # Make async API request
                 async with httpx.AsyncClient(timeout=60.0) as client:
                     response = await client.post(
-                        f"{self.gemini_api_base}/v1/chat/completions",
+                        f"{self.nano_banana_api_base}/v1/chat/completions",
                         headers=headers,
                         json=payload,
                     )
