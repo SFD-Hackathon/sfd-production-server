@@ -27,7 +27,24 @@ import time
 from typing import Dict, Optional
 from pathlib import Path
 
-import pytest
+try:
+    import pytest
+    HAS_PYTEST = True
+except ImportError:
+    HAS_PYTEST = False
+    # Create dummy pytest module for standalone execution
+    class DummyPytest:
+        @staticmethod
+        def fixture(*args, **kwargs):
+            # Return the function itself when used as decorator
+            if args and callable(args[0]):
+                return args[0]
+            # Return a decorator
+            def decorator(func):
+                return func
+            return decorator
+    pytest = DummyPytest()
+
 import requests
 
 # Configuration
