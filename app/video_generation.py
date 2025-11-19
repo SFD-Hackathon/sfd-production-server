@@ -11,7 +11,7 @@ from typing import List, Optional, Dict
 from pathlib import Path
 import logging
 
-from config import SORA_API_KEY, SORA_API_BASE, DEFAULT_ASPECT_RATIO, OUTPUTS_DIR
+from app.config import SORA_API_KEY, SORA_API_BASE, DEFAULT_ASPECT_RATIO, OUTPUTS_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +74,11 @@ def submit_video_job(
     try:
         response = requests.post(url, json=payload, headers=headers, timeout=30)
         response.raise_for_status()
-        data = response.json()
+
+        try:
+            data = response.json()
+        except ValueError as e:
+            raise SoraAPIError(f"Failed to parse Sora API response as JSON. Status: {response.status_code}, Content: {response.text[:200]}")
 
         task_id = data.get("task_id")
         if not task_id:
@@ -110,7 +114,11 @@ def poll_video_status(task_id: str) -> Dict:
     try:
         response = requests.get(url, headers=headers, timeout=30)
         response.raise_for_status()
-        data = response.json()
+
+        try:
+            data = response.json()
+        except ValueError as e:
+            raise SoraAPIError(f"Failed to parse Sora API status response as JSON. Status: {response.status_code}, Content: {response.text[:200]}")
 
         # Map API status to our internal status
         # API returns uppercase with underscores: "IN_PROGRESS", "COMPLETED", "FAILED"

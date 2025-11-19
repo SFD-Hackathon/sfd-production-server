@@ -582,11 +582,14 @@ async def generate_drama_assets(drama_id: str, background_tasks: BackgroundTasks
                 print(f"{'='*80}\n")
 
             # Update job with results
-            job_manager.update_job_status(
-                job_id,
-                JobStatus.completed if result["status"] == "completed" else JobStatus.failed,
-                result=result
-            )
+            if result["status"] == "completed":
+                job_manager.update_job_status(job_id, JobStatus.completed, result=result)
+            else:
+                # Extract error information from failed jobs
+                failed_jobs = [j for j in result.get("jobs", []) if j.get("status") == "failed"]
+                error_messages = [f"{j.get('asset_id', 'unknown')}: {j.get('error', 'Unknown error')}" for j in failed_jobs]
+                error_summary = f"{result['failed_jobs']}/{result['total_jobs']} jobs failed. " + "; ".join(error_messages[:3])
+                job_manager.update_job_status(job_id, JobStatus.failed, error=error_summary, result=result)
         except Exception as e:
             job_manager.update_job_status(job_id, JobStatus.failed, error=str(e))
 
