@@ -20,21 +20,12 @@ from collections import defaultdict, deque
 import asyncio
 import threading
 
-try:
-    from app.models import Drama, Character, Episode, Scene, Asset, AssetKind
-    from app.job_storage import get_storage, JobStorage
-    from app.video_generation import generate_video_sora
-    from app.image_generation import generate_image
-    from app.asset_library import AssetLibrary
-    from app.config import OUTPUTS_DIR
-except ImportError:
-    # Fallback for standalone execution
-    from models import Drama, Character, Episode, Scene, Asset, AssetKind
-    from job_storage import get_storage, JobStorage
-    from video_generation import generate_video_sora
-    from image_generation import generate_image
-    from asset_library import AssetLibrary
-    from config import OUTPUTS_DIR
+from app.models import Drama, Character, Episode, Scene, Asset, AssetKind
+from app.job_storage import get_storage, JobStorage
+from app.video_generation import generate_video_sora
+from app.image_generation import generate_image
+from app.asset_library import AssetLibrary
+from app.config import OUTPUTS_DIR
 
 logger = logging.getLogger(__name__)
 

@@ -10,7 +10,7 @@ import re
 import requests
 from pathlib import Path
 
-from config import GEMINI_API_KEY, GEMINI_API_BASE
+from app.config import GEMINI_API_KEY, GEMINI_API_BASE
 
 
 def generate_image(prompt: str, output_path: str, reference_images: list = None):
@@ -85,7 +85,11 @@ def generate_image(prompt: str, output_path: str, reference_images: list = None)
     )
 
     response.raise_for_status()
-    result = response.json()
+
+    try:
+        result = response.json()
+    except ValueError as e:
+        raise Exception(f"Failed to parse Gemini API response as JSON. Status: {response.status_code}, Content: {response.text[:200]}")
 
     # Extract image from response
     message = result['choices'][0]['message']['content']

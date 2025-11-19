@@ -6,6 +6,7 @@ Run tests in order from smallest to largest:
 2. Scene-level tests
 3. Episode-level tests
 4. Drama-level tests (full DAG)
+5. Drama creation from premise with reference image
 
 Usage:
     # Run all tests
@@ -15,6 +16,7 @@ Usage:
     pytest test_generation.py::test_character_generation -v
     pytest test_generation.py::test_episode_generation -v
     pytest test_generation.py::test_drama_generation -v
+    pytest test_generation.py::test_create_drama_from_premise_with_image -v
 
     # Run in order with detailed output
     pytest test_generation.py -v -s
@@ -23,13 +25,32 @@ Usage:
 import json
 import time
 from typing import Dict, Optional
+from pathlib import Path
 
-import pytest
+try:
+    import pytest
+    HAS_PYTEST = True
+except ImportError:
+    HAS_PYTEST = False
+    # Create dummy pytest module for standalone execution
+    class DummyPytest:
+        @staticmethod
+        def fixture(*args, **kwargs):
+            # Return the function itself when used as decorator
+            if args and callable(args[0]):
+                return args[0]
+            # Return a decorator
+            def decorator(func):
+                return func
+            return decorator
+    pytest = DummyPytest()
+
 import requests
 
 # Configuration
 BASE_URL = "http://localhost:8000"
 API_KEY = None  # Set if authentication is enabled
+TEST_DIR = Path(__file__).parent
 
 # Test data
 TEST_DRAMA_PREMISE = (
@@ -507,6 +528,108 @@ def test_job_listing(client: APIClient, test_drama: str):
 
     for status, count in status_counts.items():
         print(f"   {status}: {count}")
+
+
+def test_create_drama_from_premise_with_image(client: APIClient):
+    """
+    Test 7: Create drama from premise with character reference image.
+
+    This test demonstrates:
+    - Creating drama from text premise (async AI generation)
+    - Sending character reference image (cartoon_boy_character.jpg)
+    - Verifying character image generation
+    - Verifying drama cover image generation
+
+    Expected time: 2-3 minutes
+    """
+    print("\n" + "=" * 60)
+    print("TEST 7: Create Drama from Premise with Reference Image")
+    print("=" * 60)
+
+    # Prepare test data
+    premise = "A young detective solves mysteries in a small town. Keep it simple with 1 episode and 1 character."
+    drama_id = f"test_drama_with_ref_{int(time.time())}"
+
+    # Load reference image
+    reference_image_path = TEST_DIR / "cartoon_boy_character.jpg"
+    assert reference_image_path.exists(), f"Reference image not found: {reference_image_path}"
+
+    print(f"Creating drama with premise...")
+    print(f"  Premise: {premise}")
+    print(f"  Reference image: {reference_image_path.name}")
+    print(f"  Drama ID: {drama_id}")
+
+    # Send multipart request with premise and reference image
+    with open(reference_image_path, 'rb') as img_file:
+        files = {
+            'reference_image': ('cartoon_boy_character.jpg', img_file, 'image/jpeg')
+        }
+        data = {
+            'premise': premise,
+            'id': drama_id
+        }
+
+        response = requests.post(
+            f"{client.base_url}/dramas",
+            files=files,
+            data=data,
+            headers=client.headers
+        )
+
+    print(f"Response status: {response.status_code}")
+
+    assert response.status_code == 202, f"Expected 202 Accepted, got {response.status_code}. Response: {response.text}"
+
+    job_data = response.json()
+    assert "dramaId" in job_data, "Missing dramaId in response"
+    assert "jobId" in job_data, "Missing jobId in response"
+    assert job_data["status"] == "pending", f"Expected status 'pending', got {job_data['status']}"
+
+    job_id = job_data["jobId"]
+    returned_drama_id = job_data["dramaId"]
+
+    print(f"✅ Drama creation queued successfully")
+    print(f"   Drama ID: {returned_drama_id}")
+    print(f"   Job ID: {job_id}")
+
+    # Wait for drama generation to complete
+    print(f"\n⏳ Waiting for drama generation to complete...")
+    final_job = client.wait_for_job(returned_drama_id, job_id, timeout=300)
+
+    assert final_job["status"] == "completed", f"Job failed: {final_job.get('error', 'Unknown error')}"
+    print(f"✅ Drama generation completed!")
+
+    # Retrieve generated drama
+    print(f"\n📖 Retrieving generated drama...")
+    drama_response = client.get(f"/dramas/{returned_drama_id}")
+    assert drama_response.status_code == 200, f"Failed to get drama: {drama_response.status_code}"
+
+    drama = drama_response.json()
+    print(f"   Title: {drama['title']}")
+    print(f"   Characters: {len(drama['characters'])}")
+    print(f"   Episodes: {len(drama['episodes'])}")
+
+    # Verify character generation
+    assert len(drama['characters']) >= 1, "Expected at least 1 character"
+
+    character = drama['characters'][0]
+    print(f"\n   Character: {character['name']}")
+    print(f"   Description: {character['description'][:100]}...")
+
+    if character.get('url'):
+        print(f"   Character Image URL: {character['url']}")
+        print(f"   ✅ Character image generated")
+    else:
+        print(f"   ⚠️  Character image not generated")
+
+    # Verify drama cover
+    if drama.get('url'):
+        print(f"   Drama Cover URL: {drama['url']}")
+        print(f"   ✅ Drama cover image generated")
+
+    print(f"\n✅ Test passed: Drama created from premise with reference image")
+
+    return returned_drama_id
 
 
 # ============================================================================

@@ -1,7 +1,7 @@
 """Drama management endpoints"""
 
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Query, Response
-from typing import Union
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Query, Response, File, UploadFile, Form, Request
+from typing import Union, Optional
 import time
 import random
 import string
@@ -35,8 +35,15 @@ def generate_id(prefix: str = "drama") -> str:
     return f"{prefix}_{random_part}"
 
 
-async def process_drama_generation(job_id: str, drama_id: str, premise: str):
-    """Background task for drama generation"""
+async def process_drama_generation(job_id: str, drama_id: str, premise: str, reference_image_url: Optional[str] = None):
+    """Background task for drama generation
+
+    Args:
+        job_id: Job ID for tracking
+        drama_id: Drama ID
+        premise: Text premise for generation
+        reference_image_url: Optional URL to reference image for character generation
+    """
     try:
         # Update job status to processing
         job_manager.update_job_status(job_id, JobStatus.processing)
@@ -48,11 +55,27 @@ async def process_drama_generation(job_id: str, drama_id: str, premise: str):
         ai_service = get_ai_service()
         drama = await ai_service.generate_drama(premise, drama_id)
 
+        # If reference image URL provided, store it in drama metadata
+        if reference_image_url:
+            if not drama.metadata:
+                drama.metadata = {}
+            drama.metadata['reference_image_url'] = reference_image_url
+            print(f"Stored reference image URL in drama metadata: {reference_image_url}")
+
         # Save to storage with hash verification (protects against drama created during AI generation)
         await storage.save_drama(drama, expected_hash=initial_hash)
 
         # Compute hash after first save for conflict detection during image generation
         drama_hash = storage._compute_drama_hash(drama)
+
+        # Print initial drama DAG JSON (before image generation)
+        drama_json_initial = drama.model_dump_json(indent=2)
+        print(f"\n{'='*80}")
+        print(f"DRAMA DAG READY (INITIAL): {drama_id}")
+        print(f"{'='*80}")
+        print(f"Drama DAG JSON (before image generation):")
+        print(drama_json_initial)
+        print(f"{'='*80}\n")
 
         # Generate character images for all characters in parallel
         async def generate_char_image(character):
@@ -84,6 +107,15 @@ async def process_drama_generation(job_id: str, drama_id: str, premise: str):
 
         # Save updated drama with hash verification to detect concurrent modifications
         await storage.save_drama(drama, expected_hash=drama_hash)
+
+        # Print drama DAG JSON
+        drama_json = drama.model_dump_json(indent=2)
+        print(f"\n{'='*80}")
+        print(f"DRAMA CREATION COMPLETED: {drama_id}")
+        print(f"{'='*80}")
+        print(f"Drama DAG JSON:")
+        print(drama_json)
+        print(f"{'='*80}\n")
 
         # Update job status to completed
         job_manager.update_job_status(job_id, JobStatus.completed, result={"dramaId": drama_id})
@@ -182,47 +214,133 @@ async def process_drama_critique(job_id: str, drama_id: str):
 
 @router.post("", response_model=Union[Drama, JobResponse])
 async def create_drama(
-    request: Union[CreateFromPremise, CreateFromJSON],
+    request: Request,
     background_tasks: BackgroundTasks,
     response: Response,
 ):
     """
-    Create a new drama (supports two modes).
+    Create a new drama (supports three modes).
 
-    **Mode 1 (Async)**: Provide "premise" field → AI generates drama + character images + cover image → Returns job ID (202)
-    **Mode 2 (Sync)**: Provide "drama" field → Saves drama as-is → Returns drama object (201)
+    **Mode 1 (Async - JSON)**: Send JSON with "premise" field → AI generates drama + character images + cover image → Returns job ID (202)
+    **Mode 2 (Async - Multipart)**: Send form data with "premise" + optional "reference_image" file → AI generates drama using reference → Returns job ID (202)
+    **Mode 3 (Sync)**: Send JSON with "drama" field → Saves drama as-is → Returns drama object (201)
 
-    Mode 1 generates: ✅ Drama structure, ✅ Character portraits, ✅ Cover image
-    Mode 1 does NOT generate: ❌ Scene assets (use POST /dramas/{id}/generate)
+    Mode 1 & 2 generate: ✅ Drama structure, ✅ Character portraits, ✅ Cover image
+    Mode 1 & 2 do NOT generate: ❌ Scene assets (use POST /dramas/{id}/generate)
     """
-    # Check if this is premise-based (async) or JSON-based (sync)
-    if isinstance(request, CreateFromPremise) or hasattr(request, "premise"):
-        # Async mode - generate from premise
-        drama_id = request.id if hasattr(request, "id") and request.id else generate_id("drama")
+    content_type = request.headers.get("content-type", "")
+
+    # Mode 2: Multipart/form-data (with optional reference image)
+    if "multipart/form-data" in content_type:
+        form = await request.form()
+        premise = form.get("premise")
+        drama_id = form.get("id") or generate_id("drama")
+        reference_image = form.get("reference_image")
+
+        if not premise:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Field 'premise' is required in multipart request"
+            )
+
         job_id = generate_id("job")
+
+        # Save reference image if provided
+        reference_image_url = None
+        if reference_image and hasattr(reference_image, 'filename') and reference_image.filename:
+            from app.asset_library import AssetLibrary
+
+            # Read file content
+            file_content = await reference_image.read()
+
+            # Upload to R2
+            lib = AssetLibrary(user_id="10000", project_name=drama_id)
+            asset_metadata = lib.upload_asset(
+                content=file_content,
+                asset_type="image",
+                tag="character",
+                filename=reference_image.filename,
+                metadata={
+                    'drama_id': drama_id,
+                    'source': 'reference_image',
+                    'type': 'character_reference'
+                }
+            )
+            reference_image_url = asset_metadata.get('public_url')
+            print(f"✓ Uploaded reference image: {reference_image_url}")
 
         # Create job
         job_manager.create_job(job_id, drama_id, JobType.generate_drama)
 
-        # Queue background task
-        background_tasks.add_task(process_drama_generation, job_id, drama_id, request.premise)
+        # Queue background task with reference image URL
+        background_tasks.add_task(
+            process_drama_generation,
+            job_id,
+            drama_id,
+            premise,
+            reference_image_url
+        )
 
         # Set response status to 202 Accepted
         response.status_code = status.HTTP_202_ACCEPTED
 
-        # Return 202 Accepted with job info
         return JobResponse(
             dramaId=drama_id,
             jobId=job_id,
             status=JobStatus.pending,
             message=f"Drama generation job queued. Check status at: https://api.shortformdramas.com/dramas/{drama_id}/jobs/{job_id}",
         )
+
+    # Mode 1 & 3: JSON request
     else:
-        # Sync mode - save provided drama
-        response.status_code = status.HTTP_201_CREATED
-        drama = request.drama
-        await storage.save_drama(drama)
-        return drama
+        try:
+            body = await request.json()
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid JSON body: {str(e)}"
+            )
+
+        # Mode 1: Async - JSON with premise
+        if "premise" in body:
+            premise = body["premise"]
+            drama_id = body.get("id") or generate_id("drama")
+            job_id = generate_id("job")
+
+            # Create job
+            job_manager.create_job(job_id, drama_id, JobType.generate_drama)
+
+            # Queue background task (no reference image for JSON mode)
+            background_tasks.add_task(
+                process_drama_generation,
+                job_id,
+                drama_id,
+                premise,
+                None  # No reference image
+            )
+
+            # Set response status to 202 Accepted
+            response.status_code = status.HTTP_202_ACCEPTED
+
+            return JobResponse(
+                dramaId=drama_id,
+                jobId=job_id,
+                status=JobStatus.pending,
+                message=f"Drama generation job queued. Check status at: https://api.shortformdramas.com/dramas/{drama_id}/jobs/{job_id}",
+            )
+
+        # Mode 3: Sync - JSON with complete drama
+        elif "drama" in body:
+            drama = Drama(**body["drama"])
+            response.status_code = status.HTTP_201_CREATED
+            await storage.save_drama(drama)
+            return drama
+
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Must provide either 'premise' (async mode) or 'drama' (sync mode)"
+            )
 
 
 @router.get("", response_model=DramaListResponse)
@@ -418,6 +536,17 @@ async def generate_drama_assets(drama_id: str, background_tasks: BackgroundTasks
 
             logger.info(f"Filtered DAG to {len(filtered_nodes)} episode-related nodes")
 
+            # Print initial drama DAG JSON (before asset generation)
+            initial_drama = await storage.get_drama(drama_id)
+            if initial_drama:
+                drama_json_initial = initial_drama.model_dump_json(indent=2)
+                print(f"\n{'='*80}")
+                print(f"DRAMA DAG READY (INITIAL): {drama_id}")
+                print(f"{'='*80}")
+                print(f"Drama DAG JSON (before asset generation):")
+                print(drama_json_initial)
+                print(f"{'='*80}\n")
+
             # Execute filtered DAG manually (don't call execute_dag which rebuilds)
             # Get execution order
             levels = executor.topological_sort(filtered_dag)
@@ -441,12 +570,26 @@ async def generate_drama_assets(drama_id: str, background_tasks: BackgroundTasks
             # Get final status
             result = executor.get_execution_status()
 
+            # Print drama DAG JSON after generation completes
+            updated_drama = await storage.get_drama(drama_id)
+            if updated_drama:
+                drama_json = updated_drama.model_dump_json(indent=2)
+                print(f"\n{'='*80}")
+                print(f"DRAMA GENERATION COMPLETED: {drama_id}")
+                print(f"{'='*80}")
+                print(f"Drama DAG JSON:")
+                print(drama_json)
+                print(f"{'='*80}\n")
+
             # Update job with results
-            job_manager.update_job_status(
-                job_id,
-                JobStatus.completed if result["status"] == "completed" else JobStatus.failed,
-                result=result
-            )
+            if result["status"] == "completed":
+                job_manager.update_job_status(job_id, JobStatus.completed, result=result)
+            else:
+                # Extract error information from failed jobs
+                failed_jobs = [j for j in result.get("jobs", []) if j.get("status") == "failed"]
+                error_messages = [f"{j.get('asset_id', 'unknown')}: {j.get('error', 'Unknown error')}" for j in failed_jobs]
+                error_summary = f"{result['failed_jobs']}/{result['total_jobs']} jobs failed. " + "; ".join(error_messages[:3])
+                job_manager.update_job_status(job_id, JobStatus.failed, error=error_summary, result=result)
         except Exception as e:
             job_manager.update_job_status(job_id, JobStatus.failed, error=str(e))
 
