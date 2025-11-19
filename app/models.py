@@ -109,6 +109,11 @@ class CreateFromPremise(BaseModel):
     """Create drama from text premise"""
     premise: str = Field(..., description="Text premise to generate drama from")
     id: Optional[str] = Field(None, description="Optional custom ID for the drama")
+    model: Optional[str] = Field(
+        "gemini-3-pro-preview",
+        description="AI model to use for drama generation. Options: 'gemini-3-pro-preview' (default, Google Gemini 3 Pro Preview) or 'gpt-5.1' (OpenAI GPT-5.1)",
+        examples=["gemini-3-pro-preview", "gpt-5.1"]
+    )
 
 
 class CreateFromJSON(BaseModel):
@@ -120,6 +125,20 @@ class ImproveDramaRequest(BaseModel):
     """Request to improve a drama"""
     feedback: str = Field(..., description="Feedback for improving the drama")
     newDramaId: Optional[str] = Field(None, description="Optional custom ID for the improved drama")
+    model: Optional[str] = Field(
+        "gemini-3-pro-preview",
+        description="AI model to use for drama improvement. Options: 'gemini-3-pro-preview' (default, Google Gemini 3 Pro Preview) or 'gpt-5.1' (OpenAI GPT-5.1)",
+        examples=["gemini-3-pro-preview", "gpt-5.1"]
+    )
+
+
+class CriticDramaRequest(BaseModel):
+    """Request to critique a drama"""
+    model: Optional[str] = Field(
+        "gemini-3-pro-preview",
+        description="AI model to use for drama critique. Options: 'gemini-3-pro-preview' (default, Google Gemini 3 Pro Preview) or 'gpt-5.1' (OpenAI GPT-5.1)",
+        examples=["gemini-3-pro-preview", "gpt-5.1"]
+    )
 
 
 # Response models

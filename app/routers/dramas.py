@@ -16,6 +16,7 @@ from app.models import (
     DramaListResponse,
     ImproveDramaRequest,
     ImproveDramaResponse,
+    CriticDramaRequest,
     CriticResponse,
     JobType,
     JobStatus,
@@ -35,13 +36,14 @@ def generate_id(prefix: str = "drama") -> str:
     return f"{prefix}_{random_part}"
 
 
-async def process_drama_generation(job_id: str, drama_id: str, premise: str, reference_image_url: Optional[str] = None):
+async def process_drama_generation(job_id: str, drama_id: str, premise: str, model: str = "gemini-3-pro-preview", reference_image_url: Optional[str] = None):
     """Background task for drama generation
 
     Args:
         job_id: Job ID for tracking
         drama_id: Drama ID
         premise: Text premise for generation
+        model: AI model to use ('gpt-5.1' or 'gemini-3-pro-preview')
         reference_image_url: Optional URL to reference image for character generation
     """
     try:
@@ -53,7 +55,7 @@ async def process_drama_generation(job_id: str, drama_id: str, premise: str, ref
 
         # Generate drama using AI
         ai_service = get_ai_service()
-        drama = await ai_service.generate_drama(premise, drama_id)
+        drama = await ai_service.generate_drama(premise, drama_id, model)
 
         # If reference image URL provided, store it in drama metadata
         if reference_image_url:
@@ -125,7 +127,7 @@ async def process_drama_generation(job_id: str, drama_id: str, premise: str, ref
         job_manager.update_job_status(job_id, JobStatus.failed, error=str(e))
 
 
-async def process_drama_improvement(job_id: str, original_id: str, improved_id: str, feedback: str):
+async def process_drama_improvement(job_id: str, original_id: str, improved_id: str, feedback: str, model: str = "gemini-3-pro-preview"):
     """Background task for drama improvement"""
     try:
         # Update job status to processing
@@ -141,7 +143,7 @@ async def process_drama_improvement(job_id: str, original_id: str, improved_id: 
 
         # Improve drama using AI
         ai_service = get_ai_service()
-        improved_drama = await ai_service.improve_drama(original_drama, feedback, improved_id)
+        improved_drama = await ai_service.improve_drama(original_drama, feedback, improved_id, model)
 
         # Save to storage with hash verification (protects against drama created during AI generation)
         await storage.save_drama(improved_drama, expected_hash=initial_hash)
@@ -189,7 +191,7 @@ async def process_drama_improvement(job_id: str, original_id: str, improved_id: 
         job_manager.update_job_status(job_id, JobStatus.failed, error=str(e))
 
 
-async def process_drama_critique(job_id: str, drama_id: str):
+async def process_drama_critique(job_id: str, drama_id: str, model: str = "gemini-3-pro-preview"):
     """Background task for drama critique"""
     try:
         # Update job status to processing
@@ -202,7 +204,7 @@ async def process_drama_critique(job_id: str, drama_id: str):
 
         # Get critique from AI
         ai_service = get_ai_service()
-        feedback = await ai_service.critique_drama(drama)
+        feedback = await ai_service.critique_drama(drama, model)
 
         # Update job status to completed with feedback in result
         job_manager.update_job_status(job_id, JobStatus.completed, result={"feedback": feedback})
@@ -227,6 +229,12 @@ async def create_drama(
 
     Mode 1 & 2 generate: ✅ Drama structure, ✅ Character portraits, ✅ Cover image
     Mode 1 & 2 do NOT generate: ❌ Scene assets (use POST /dramas/{id}/generate)
+
+    **AI Model Selection (Mode 1 & 2):**
+    - **Default**: `gemini-3-pro-preview` (Google Gemini 3 Pro Preview) - High-quality, fast, cost-effective
+    - **Alternative**: `gpt-5.1` (OpenAI GPT-5.1) - Available for comparison
+    - Specify using `"model"` field in JSON or form data
+    - If not specified, defaults to Gemini 3 Pro Preview
     """
     content_type = request.headers.get("content-type", "")
 
@@ -235,6 +243,7 @@ async def create_drama(
         form = await request.form()
         premise = form.get("premise")
         drama_id = form.get("id") or generate_id("drama")
+        model = form.get("model") or "gemini-3-pro-preview"
         reference_image = form.get("reference_image")
 
         if not premise:
@@ -272,12 +281,13 @@ async def create_drama(
         # Create job
         job_manager.create_job(job_id, drama_id, JobType.generate_drama)
 
-        # Queue background task with reference image URL
+        # Queue background task with model and reference image URL
         background_tasks.add_task(
             process_drama_generation,
             job_id,
             drama_id,
             premise,
+            model,
             reference_image_url
         )
 
@@ -305,17 +315,19 @@ async def create_drama(
         if "premise" in body:
             premise = body["premise"]
             drama_id = body.get("id") or generate_id("drama")
+            model = body.get("model") or "gemini-3-pro-preview"
             job_id = generate_id("job")
 
             # Create job
             job_manager.create_job(job_id, drama_id, JobType.generate_drama)
 
-            # Queue background task (no reference image for JSON mode)
+            # Queue background task with model (no reference image for JSON mode)
             background_tasks.add_task(
                 process_drama_generation,
                 job_id,
                 drama_id,
                 premise,
+                model,
                 None  # No reference image
             )
 
@@ -439,8 +451,14 @@ async def improve_drama(
     Improve drama with feedback
 
     Queue an async job to improve an existing drama based on feedback.
-    GPT-5 will regenerate the drama incorporating your feedback.
+    The selected AI model will regenerate the drama incorporating your feedback.
     Creates a new improved version with a new ID.
+
+    **AI Model Selection:**
+    - **Default**: `gemini-3-pro-preview` (Google Gemini 3 Pro Preview)
+    - **Alternative**: `gpt-5.1` (OpenAI GPT-5.1)
+    - Specify using `"model"` field in request body
+    - If not specified, defaults to Gemini 3 Pro Preview
     """
     # Check if original drama exists
     exists = await storage.drama_exists(drama_id)
@@ -457,8 +475,8 @@ async def improve_drama(
     # Create job
     job_manager.create_job(job_id, improved_id, JobType.improve_drama)
 
-    # Queue background task
-    background_tasks.add_task(process_drama_improvement, job_id, drama_id, improved_id, request.feedback)
+    # Queue background task with model parameter
+    background_tasks.add_task(process_drama_improvement, job_id, drama_id, improved_id, request.feedback, request.model)
 
     # Return response
     return ImproveDramaResponse(
@@ -606,6 +624,7 @@ async def generate_drama_assets(drama_id: str, background_tasks: BackgroundTasks
 @router.post("/{drama_id}/critic", response_model=CriticResponse, status_code=status.HTTP_202_ACCEPTED)
 async def critique_drama(
     drama_id: str,
+    request: CriticDramaRequest,
     background_tasks: BackgroundTasks,
 ):
     """
@@ -613,7 +632,6 @@ async def critique_drama(
 
     Queue an async job to get expert critical analysis of the drama's storytelling,
     character development, pacing, dialogue, and overall narrative quality.
-    GPT-5 will provide actionable feedback to help improve the script.
 
     The critique focuses on:
     - Story structure and pacing
@@ -622,6 +640,12 @@ async def critique_drama(
     - Emotional impact and engagement
     - Scene composition and flow
     - Overall narrative coherence
+
+    **AI Model Selection:**
+    - **Default**: `gemini-3-pro-preview` (Google Gemini 3 Pro Preview) - High-quality critique analysis
+    - **Alternative**: `gpt-5.1` (OpenAI GPT-5.1)
+    - Specify using `"model"` field in request body
+    - If not specified, defaults to Gemini 3 Pro Preview
 
     Returns immediately with a job ID. Use the job status endpoint to retrieve
     the critique feedback once the job completes.
@@ -640,8 +664,8 @@ async def critique_drama(
     # Create job
     job_manager.create_job(job_id, drama_id, JobType.critique_drama)
 
-    # Queue background task
-    background_tasks.add_task(process_drama_critique, job_id, drama_id)
+    # Queue background task with model parameter
+    background_tasks.add_task(process_drama_critique, job_id, drama_id, request.model)
 
     # Return response
     return CriticResponse(

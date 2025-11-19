@@ -1,4 +1,4 @@
-"""AI service for drama generation using OpenAI GPT-5 and image generation using Gemini"""
+"""AI service for drama generation using OpenAI GPT-5 and Google Gemini"""
 
 import os
 import re
@@ -7,6 +7,7 @@ import asyncio
 import httpx
 from typing import Optional, List
 from openai import AsyncOpenAI
+from google import genai
 from app.models import (
     Drama,
     DramaLite,
@@ -27,16 +28,26 @@ class AIService:
         # OpenAI/GPT configuration
         api_key = os.getenv("OPENAI_API_KEY")
         api_base = os.getenv("OPENAI_API_BASE")
-        self.model = os.getenv("GPT_MODEL", "gpt-5")
+        self.gpt_model = os.getenv("GPT_MODEL", "gpt-5.1")
 
         # Initialize OpenAI client
         client_kwargs = {"api_key": api_key}
         if api_base:
             client_kwargs["base_url"] = api_base
 
-        self.client = AsyncOpenAI(**client_kwargs)
+        self.openai_client = AsyncOpenAI(**client_kwargs)
 
-        # Gemini configuration for image generation
+        # Official Google Gemini configuration for drama generation
+        self.official_gemini_api_key = os.getenv("OFFICIAL_GEMINI_API_KEY")
+        self.gemini_drama_model = os.getenv("GEMINI_DRAMA_MODEL", "gemini-3-pro-preview")
+
+        # Initialize Gemini client (official Google SDK)
+        if self.official_gemini_api_key:
+            self.gemini_client = genai.Client(api_key=self.official_gemini_api_key)
+        else:
+            self.gemini_client = None
+
+        # Gemini configuration for image generation (via t8star.cn)
         self.gemini_api_key = os.getenv("GEMINI_API_KEY")
         self.gemini_api_base = os.getenv("GEMINI_API_BASE")
         self.gemini_model = "gemini-2.5-flash-image"
@@ -46,13 +57,14 @@ class AIService:
         self.sora_api_base = os.getenv("SORA_API_BASE")
         self.sora_model = "sora-2"
 
-    async def generate_drama(self, premise: str, drama_id: str) -> Drama:
+    async def generate_drama(self, premise: str, drama_id: str, model: str = "gemini-3-pro-preview") -> Drama:
         """
-        Generate drama from text premise using GPT-5
+        Generate drama from text premise using specified AI model
 
         Args:
             premise: Text premise to generate drama from
             drama_id: ID for the generated drama
+            model: AI model to use ('gpt-5.1' or 'gemini-3-pro-preview')
 
         Returns:
             Generated Drama object
@@ -103,20 +115,11 @@ VOICE CHARACTERIZATION REQUIREMENT:
 Scenes and visual assets will be generated separately in a later step."""
 
         try:
-            # Call GPT-5 with DramaLite schema (episode-level only, no scenes)
-            # Note: GPT-5 only supports temperature=1 (default)
-            response = await self.client.beta.chat.completions.parse(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                max_completion_tokens=32000,
-                response_format=DramaLite,
-            )
-
-            # Get parsed DramaLite object (episodes without scenes)
-            drama_lite = response.choices[0].message.parsed
+            # Route to appropriate AI model
+            if model == "gemini-3-pro-preview":
+                drama_lite = await self._generate_with_gemini(system_prompt, user_prompt)
+            else:  # gpt-5.1
+                drama_lite = await self._generate_with_gpt(system_prompt, user_prompt)
 
             # Convert DramaLite to full Drama with all fields
             drama = self._convert_lite_to_full(drama_lite, drama_id, premise)
@@ -124,8 +127,46 @@ Scenes and visual assets will be generated separately in a later step."""
             return drama
 
         except Exception as e:
-            print(f"Error generating drama: {e}")
+            print(f"Error generating drama with {model}: {e}")
             raise
+
+    async def _generate_with_gpt(self, system_prompt: str, user_prompt: str) -> DramaLite:
+        """Generate drama using GPT-5.1 (OpenAI)"""
+        response = await self.openai_client.beta.chat.completions.parse(
+            model=self.gpt_model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            max_completion_tokens=32000,
+            response_format=DramaLite,
+        )
+        return response.choices[0].message.parsed
+
+    async def _generate_with_gemini(self, system_prompt: str, user_prompt: str) -> DramaLite:
+        """Generate drama using Gemini 3 Pro Preview (Google)"""
+        if not self.gemini_client:
+            raise ValueError("Gemini client not initialized. Check OFFICIAL_GEMINI_API_KEY.")
+
+        # Combine system and user prompts for Gemini
+        full_prompt = f"{system_prompt}\n\n{user_prompt}"
+
+        # Run Gemini generation in thread pool (SDK is sync)
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(
+            None,
+            lambda: self.gemini_client.models.generate_content(
+                model=self.gemini_drama_model,
+                contents=full_prompt,
+                config={
+                    "response_mime_type": "application/json",
+                    "response_schema": DramaLite,
+                },
+            )
+        )
+
+        # Parse JSON response into DramaLite
+        return DramaLite.model_validate_json(response.text)
 
     def _convert_lite_to_full(self, drama_lite: DramaLite, drama_id: str, premise: str) -> Drama:
         """Convert DramaLite to full Drama model with all required fields"""
@@ -195,7 +236,7 @@ Scenes and visual assets will be generated separately in a later step."""
             metadata=None,
         )
 
-    async def improve_drama(self, original_drama: Drama, feedback: str, new_drama_id: str) -> Drama:
+    async def improve_drama(self, original_drama: Drama, feedback: str, new_drama_id: str, model: str = "gemini-3-pro-preview") -> Drama:
         """
         Improve existing drama based on feedback
 
@@ -203,6 +244,7 @@ Scenes and visual assets will be generated separately in a later step."""
             original_drama: Original drama to improve
             feedback: User feedback for improvement
             new_drama_id: ID for the improved drama
+            model: AI model to use ('gpt-5.1' or 'gemini-3-pro-preview')
 
         Returns:
             Improved Drama object
@@ -284,20 +326,11 @@ VOICE CHARACTERIZATION REQUIREMENT:
 Scenes and visual assets will be generated in a later step. Focus on the high-level drama structure."""
 
         try:
-            # Call GPT-5 with DramaLite (episode-level only)
-            # Note: GPT-5 only supports temperature=1 (default)
-            response = await self.client.beta.chat.completions.parse(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                max_completion_tokens=32000,
-                response_format=DramaLite,
-            )
-
-            # Get parsed DramaLite object (episodes without scenes)
-            drama_lite = response.choices[0].message.parsed
+            # Route to appropriate AI model
+            if model == "gemini-3-pro-preview":
+                drama_lite = await self._generate_with_gemini(system_prompt, user_prompt)
+            else:  # gpt-5.1
+                drama_lite = await self._generate_with_gpt(system_prompt, user_prompt)
 
             # Convert to full Drama
             drama = self._convert_lite_to_full(drama_lite, new_drama_id, original_drama.premise)
@@ -305,15 +338,16 @@ Scenes and visual assets will be generated in a later step. Focus on the high-le
             return drama
 
         except Exception as e:
-            print(f"Error improving drama: {e}")
+            print(f"Error improving drama with {model}: {e}")
             raise
 
-    async def critique_drama(self, drama: Drama) -> str:
+    async def critique_drama(self, drama: Drama, model: str = "gemini-3-pro-preview") -> str:
         """
         Provide critical feedback on a drama script
 
         Args:
             drama: Drama to critique
+            model: AI model to use ('gpt-5.1' or 'gemini-3-pro-preview')
 
         Returns:
             Critical feedback as a string
@@ -361,31 +395,52 @@ Provide a comprehensive critique focusing on:
 Note: This critique focuses on the drama, character, and episode levels. Scene-level details will be evaluated separately."""
 
         try:
-            # Call GPT-5 for critique (using standard completion, not structured output)
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                max_completion_tokens=32000,
-            )
-
-            # Get the critique text
-            critique = response.choices[0].message.content
-
-            # Handle None case
-            if critique is None:
-                critique = ""
-                print(f"Warning: GPT-5 returned None for critique")
+            # Route to appropriate AI model
+            if model == "gemini-3-pro-preview":
+                critique = await self._critique_with_gemini(system_prompt, user_prompt)
+            else:  # gpt-5.1
+                critique = await self._critique_with_gpt(system_prompt, user_prompt)
 
             return critique
 
         except Exception as e:
-            print(f"Error critiquing drama: {e}")
+            print(f"Error critiquing drama with {model}: {e}")
             import traceback
             traceback.print_exc()
             raise
+
+    async def _critique_with_gpt(self, system_prompt: str, user_prompt: str) -> str:
+        """Generate critique using GPT-5.1 (OpenAI)"""
+        response = await self.openai_client.chat.completions.create(
+            model=self.gpt_model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            max_completion_tokens=32000,
+        )
+        critique = response.choices[0].message.content
+        return critique if critique is not None else ""
+
+    async def _critique_with_gemini(self, system_prompt: str, user_prompt: str) -> str:
+        """Generate critique using Gemini 3 Pro Preview (Google)"""
+        if not self.gemini_client:
+            raise ValueError("Gemini client not initialized. Check OFFICIAL_GEMINI_API_KEY.")
+
+        # Combine system and user prompts for Gemini
+        full_prompt = f"{system_prompt}\n\n{user_prompt}"
+
+        # Run Gemini generation in thread pool (SDK is sync)
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(
+            None,
+            lambda: self.gemini_client.models.generate_content(
+                model=self.gemini_drama_model,
+                contents=full_prompt,
+            )
+        )
+
+        return response.text
 
     async def _generate_and_upload_image(
         self,
