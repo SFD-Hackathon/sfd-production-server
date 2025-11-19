@@ -70,20 +70,10 @@ class AIService:
         Returns:
             Generated Drama object
         """
-        # Extract episode count from premise if specified (e.g., "10 episodes")
-        import re
-        episode_match = re.search(r'(\d+)\s*episodes?', premise, re.IGNORECASE)
-        if episode_match:
-            episode_count = int(episode_match.group(1))
-            episode_guidance = f"{episode_count} episodes as specified in the premise"
-        else:
-            episode_count = None
-            episode_guidance = "2-3 episodes for a complete story arc"
-
-        system_prompt = f"""You are an expert short-form drama writer. Generate compelling, emotionally engaging dramas based on the user's premise.
+        system_prompt = """You are an expert short-form drama writer. Generate compelling, emotionally engaging dramas based on the user's premise.
 
 Guidelines:
-1. Create {episode_guidance}
+1. Create 2-3 episodes for a complete story arc
 2. Create 1-2 main characters (main: true) with depth and clear gender (male/female/other)
 3. You may add supporting characters (main: false) but limit total characters to 4-6
 4. Focus on episode-level narrative structure and story beats
@@ -104,7 +94,7 @@ Note: Scenes and assets will be generated in a later processing step. Focus on t
 
 Important:
 - Create compelling characters with depth and clear motivations
-- Develop a complete story arc across {episode_guidance}
+- Develop a complete story arc across 2-3 episodes
 - Each episode description should detail the key story beats, character developments, and emotional moments
 - Focus on narrative structure at the episode level
 
