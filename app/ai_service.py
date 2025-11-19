@@ -73,7 +73,11 @@ class AIService:
         system_prompt = """You are an expert short-form drama writer. Generate compelling, emotionally engaging dramas based on the user's premise.
 
 Guidelines:
-1. Create 2-3 episodes for a complete story arc
+1. Intelligently decide the number of episodes (typically 3-5, but can be 2-10) based on:
+   - Story complexity: Simple stories need fewer episodes, complex plots need more
+   - Character development needs: More characters or deeper arcs need more episodes
+   - Premise scope: Smaller scope = 2-3 episodes, medium scope = 3-5 episodes, larger scope = 5-10 episodes
+   - Narrative pacing: Ensure each episode has meaningful story progression
 2. Create 1-2 main characters (main: true) with depth and clear gender (male/female/other)
 3. You may add supporting characters (main: false) but limit total characters to 4-6
 4. Focus on episode-level narrative structure and story beats
@@ -93,8 +97,11 @@ Note: Scenes and assets will be generated in a later processing step. Focus on t
 {premise}
 
 Important:
+- Analyze the premise and intelligently decide how many episodes are needed for a complete, well-paced story
+- Simple premises: 2-3 episodes
+- Standard premises: 3-5 episodes (most common)
+- Complex premises: 5-10 episodes
 - Create compelling characters with depth and clear motivations
-- Develop a complete story arc across 2-3 episodes
 - Each episode description should detail the key story beats, character developments, and emotional moments
 - Focus on narrative structure at the episode level
 
