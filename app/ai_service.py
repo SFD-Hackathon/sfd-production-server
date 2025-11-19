@@ -1,11 +1,10 @@
 """AI service for drama generation using OpenAI GPT-5 and image generation using Gemini"""
 
-import os
 import re
 import base64
 import asyncio
 import httpx
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from openai import AsyncOpenAI
 from app.models import (
     Drama,
@@ -17,6 +16,7 @@ from app.models import (
     AssetKind,
 )
 from app.storage import storage
+from app.config import get_settings
 
 
 class AIService:
@@ -24,27 +24,14 @@ class AIService:
 
     def __init__(self):
         """Initialize AI service with OpenAI client and Gemini configuration"""
+        self.settings = get_settings()
+        
         # OpenAI/GPT configuration
-        api_key = os.getenv("OPENAI_API_KEY")
-        api_base = os.getenv("OPENAI_API_BASE")
-        self.model = os.getenv("GPT_MODEL", "gpt-5")
-
-        # Initialize OpenAI client
-        client_kwargs = {"api_key": api_key}
-        if api_base:
-            client_kwargs["base_url"] = api_base
+        client_kwargs = {"api_key": self.settings.openai_api_key}
+        if self.settings.openai_api_base:
+            client_kwargs["base_url"] = self.settings.openai_api_base
 
         self.client = AsyncOpenAI(**client_kwargs)
-
-        # Gemini configuration for image generation
-        self.gemini_api_key = os.getenv("GEMINI_API_KEY")
-        self.gemini_api_base = os.getenv("GEMINI_API_BASE")
-        self.gemini_model = "gemini-2.5-flash-image"
-
-        # Sora configuration for video generation
-        self.sora_api_key = os.getenv("SORA_API_KEY")
-        self.sora_api_base = os.getenv("SORA_API_BASE")
-        self.sora_model = "sora-2"
 
     async def generate_drama(self, premise: str, drama_id: str) -> Drama:
         """
@@ -58,7 +45,6 @@ class AIService:
             Generated Drama object
         """
         # Extract episode count from premise if specified (e.g., "10 episodes")
-        import re
         episode_match = re.search(r'(\d+)\s*episodes?', premise, re.IGNORECASE)
         if episode_match:
             episode_count = int(episode_match.group(1))
@@ -106,7 +92,7 @@ Scenes and visual assets will be generated separately in a later step."""
             # Call GPT-5 with DramaLite schema (episode-level only, no scenes)
             # Note: GPT-5 only supports temperature=1 (default)
             response = await self.client.beta.chat.completions.parse(
-                model=self.model,
+                model=self.settings.gpt_model,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
@@ -287,7 +273,7 @@ Scenes and visual assets will be generated in a later step. Focus on the high-le
             # Call GPT-5 with DramaLite (episode-level only)
             # Note: GPT-5 only supports temperature=1 (default)
             response = await self.client.beta.chat.completions.parse(
-                model=self.model,
+                model=self.settings.gpt_model,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
@@ -363,7 +349,7 @@ Note: This critique focuses on the drama, character, and episode levels. Scene-l
         try:
             # Call GPT-5 for critique (using standard completion, not structured output)
             response = await self.client.chat.completions.create(
-                model=self.model,
+                model=self.settings.gpt_model,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
@@ -405,7 +391,7 @@ Note: This critique focuses on the drama, character, and episode levels. Scene-l
         Returns:
             Public R2 URL of the uploaded image
         """
-        if not self.gemini_api_key or not self.gemini_api_base:
+        if not self.settings.gemini_api_key or not self.settings.gemini_api_base:
             raise ValueError(
                 "GEMINI_API_KEY and GEMINI_API_BASE environment variables are required"
             )
@@ -419,13 +405,13 @@ Note: This critique focuses on the drama, character, and episode levels. Scene-l
 
         # Build API request payload
         payload = {
-            "model": self.gemini_model,
+            "model": self.settings.gemini_model,
             "messages": [{"role": "user", "content": content}],
             "stream": False,
         }
 
         headers = {
-            "Authorization": f"Bearer {self.gemini_api_key}",
+            "Authorization": f"Bearer {self.settings.gemini_api_key}",
             "Content-Type": "application/json",
         }
 
@@ -438,7 +424,7 @@ Note: This critique focuses on the drama, character, and episode levels. Scene-l
                 # Make async API request
                 async with httpx.AsyncClient(timeout=60.0) as client:
                     response = await client.post(
-                        f"{self.gemini_api_base}/v1/chat/completions",
+                        f"{self.settings.gemini_api_base}/v1/chat/completions",
                         headers=headers,
                         json=payload,
                     )
@@ -618,7 +604,7 @@ IMPORTANT: Use the EXACT same dimensions and aspect ratio as the reference image
         Returns:
             Public R2 URL of the uploaded video
         """
-        if not self.sora_api_key or not self.sora_api_base:
+        if not self.settings.sora_api_key or not self.settings.sora_api_base:
             raise ValueError(
                 "SORA_API_KEY and SORA_API_BASE environment variables are required"
             )
@@ -627,17 +613,17 @@ IMPORTANT: Use the EXACT same dimensions and aspect ratio as the reference image
         duration = 10
 
         # Build character audition prompt including voice description
-        audition_prompt = f"Character audition video for {character.name}: {character.description}. Voice: {character.voice_description}. Show the character in a dynamic pose, turning slightly and making expressive gestures that showcase their personality and vocal style. Anime style, smooth animation."
+        audition_prompt = f"Character audition video for {character.name}: {character.description}. Voice: {character.voice_description}. Show the character in a dynamic, engaging pose, turning slightly and making expressive gestures that showcase their personality and vocal style. Anime style, smooth animation."
 
         # Prepare API request
         headers = {
-            "Authorization": f"Bearer {self.sora_api_key}",
+            "Authorization": f"Bearer {self.settings.sora_api_key}",
             "Content-Type": "application/json"
         }
 
         payload = {
             "prompt": audition_prompt,
-            "model": self.sora_model,
+            "model": self.settings.sora_model,
             "aspect_ratio": "9:16",
             "duration": str(duration),
             "hd": False
@@ -656,7 +642,7 @@ IMPORTANT: Use the EXACT same dimensions and aspect ratio as the reference image
                 # Submit video generation job
                 async with httpx.AsyncClient(timeout=30.0) as client:
                     response = await client.post(
-                        f"{self.sora_api_base}/v2/videos/generations",
+                        f"{self.settings.sora_api_base}/v2/videos/generations",
                         headers=headers,
                         json=payload,
                     )
@@ -681,7 +667,7 @@ IMPORTANT: Use the EXACT same dimensions and aspect ratio as the reference image
                     # Check status
                     async with httpx.AsyncClient(timeout=30.0) as client:
                         status_response = await client.get(
-                            f"{self.sora_api_base}/v2/videos/generations/{task_id}",
+                            f"{self.settings.sora_api_base}/v2/videos/generations/{task_id}",
                             headers=headers,
                         )
                         status_response.raise_for_status()
