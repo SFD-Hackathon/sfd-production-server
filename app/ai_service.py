@@ -38,20 +38,20 @@ class AIService:
 
         self.openai_client = AsyncOpenAI(**client_kwargs)
 
-        # Official Google Gemini configuration for drama generation
-        self.official_gemini_api_key = os.getenv("OFFICIAL_GEMINI_API_KEY")
+        # Google Gemini configuration for drama generation
+        self.gemini_api_key = os.getenv("GEMINI_API_KEY")
         self.gemini_drama_model = os.getenv("GEMINI_DRAMA_MODEL", "gemini-3-pro-preview")
 
-        # Initialize Gemini client (official Google SDK)
-        if self.official_gemini_api_key:
-            self.gemini_client = genai.Client(api_key=self.official_gemini_api_key)
+        # Initialize Gemini client (Google SDK)
+        if self.gemini_api_key:
+            self.gemini_client = genai.Client(api_key=self.gemini_api_key)
         else:
             self.gemini_client = None
 
         # Gemini configuration for image generation (via t8star.cn)
-        self.gemini_api_key = os.getenv("GEMINI_API_KEY")
-        self.gemini_api_base = os.getenv("GEMINI_API_BASE")
-        self.gemini_model = "gemini-2.5-flash-image"
+        self.nano_banana_api_key = os.getenv("NANO_BANANA_API_KEY")
+        self.nano_banana_api_base = os.getenv("NANO_BANANA_API_BASE")
+        self.nano_banana_model = "gemini-2.5-flash-image"
 
         # Sora configuration for video generation
         self.sora_api_key = os.getenv("SORA_API_KEY")
@@ -79,7 +79,7 @@ Guidelines:
    - Premise scope: Smaller scope = 2-3 episodes, medium scope = 3-5 episodes, larger scope = 5-10 episodes
    - Narrative pacing: Ensure each episode has meaningful story progression
 2. Create 1-2 main characters (main: true) with depth and clear gender (male/female/other)
-3. You may add supporting characters (main: false) but limit total characters to 4-6
+3. You may add supporting characters (main: false) but limit total characters to 3-4
 4. Focus on episode-level narrative structure and story beats
 5. Each episode description should cover the full episode arc with key story developments
 6. Make the story emotionally engaging and dramatic
@@ -102,7 +102,7 @@ Important:
 - Standard premises: 3-5 episodes (most common)
 - Complex premises: 5-10 episodes
 - Create compelling characters with depth and clear motivations
-- Each episode description should detail the key story beats, character developments, and emotional moments
+- Each episode description should capture the high level development and climax of the episode. Be concise and to the point.
 - Focus on narrative structure at the episode level
 
 VOICE CHARACTERIZATION REQUIREMENT:
@@ -462,9 +462,9 @@ Note: This critique focuses on the drama, character, and episode levels. Scene-l
         Returns:
             Public R2 URL of the uploaded image
         """
-        if not self.gemini_api_key or not self.gemini_api_base:
+        if not self.nano_banana_api_key or not self.gemini_api_base:
             raise ValueError(
-                "GEMINI_API_KEY and GEMINI_API_BASE environment variables are required"
+                "NANO_BANANA_API_KEY and NANO_BANANA_API_BASE environment variables are required"
             )
 
         # Build request content
@@ -476,13 +476,13 @@ Note: This critique focuses on the drama, character, and episode levels. Scene-l
 
         # Build API request payload
         payload = {
-            "model": self.gemini_model,
+            "model": self.nano_banana_model,
             "messages": [{"role": "user", "content": content}],
             "stream": False,
         }
 
         headers = {
-            "Authorization": f"Bearer {self.gemini_api_key}",
+            "Authorization": f"Bearer {self.nano_banana_api_key}",
             "Content-Type": "application/json",
         }
 
