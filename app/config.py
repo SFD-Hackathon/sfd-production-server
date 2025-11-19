@@ -22,13 +22,13 @@ else:
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GPT_MODEL = os.getenv("GPT_MODEL", "gpt-5")
 
-# Gemini Configuration (for image generation via t8star.cn)
+# Google Gemini API (for drama generation)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_API_BASE = os.getenv("GEMINI_API_BASE", "https://generativelanguage.googleapis.com")
-
-# Official Google Gemini API (for drama generation)
-OFFICIAL_GEMINI_API_KEY = os.getenv("OFFICIAL_GEMINI_API_KEY")
 GEMINI_DRAMA_MODEL = os.getenv("GEMINI_DRAMA_MODEL", "gemini-3-pro-preview")
+
+# Nano Banana API (for image generation via t8star.cn)
+NANO_BANANA_API_KEY = os.getenv("NANO_BANANA_API_KEY")
+NANO_BANANA_API_BASE = os.getenv("NANO_BANANA_API_BASE", "https://ai.t8star.cn")
 
 # Sora Configuration (for video generation)
 SORA_API_KEY = os.getenv("SORA_API_KEY")
@@ -93,7 +93,7 @@ print(f"GPT Model: {GPT_MODEL}")
 print(f"Gemini Drama Model: {GEMINI_DRAMA_MODEL}")
 print(f"R2 Bucket: {R2_BUCKET}")
 print(f"GEMINI_API_KEY exists: {bool(GEMINI_API_KEY)}")
-print(f"OFFICIAL_GEMINI_API_KEY exists: {bool(OFFICIAL_GEMINI_API_KEY)}")
+print(f"NANO_BANANA_API_KEY exists: {bool(NANO_BANANA_API_KEY)}")
 print(f"SORA_API_KEY exists: {bool(SORA_API_KEY)}")
 print(f"OPENAI_API_KEY exists: {bool(OPENAI_API_KEY)}")
 print(f"R2_ACCOUNT_ID exists: {bool(R2_ACCOUNT_ID)}")
