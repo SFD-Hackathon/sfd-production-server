@@ -21,6 +21,7 @@ from app.models import (
 )
 from app.storage import storage
 from app.image_generation import generate_image_async
+from app import system_prompts
 
 
 class AIService:
@@ -67,47 +68,18 @@ class AIService:
         Returns:
             Generated Drama object
         """
-        system_prompt = """You are an expert short-form drama writer. Generate compelling, emotionally engaging dramas based on the user's premise.
+        # Extract episode count from premise if specified (e.g., "10 episodes")
+        episode_match = re.search(r'(\d+)\s*episodes?', premise, re.IGNORECASE)
+        if episode_match:
+            episode_count = int(episode_match.group(1))
+            episode_guidance = f"{episode_count} episodes as specified in the premise"
+        else:
+            episode_count = None
+            episode_guidance = "2-3 episodes for a complete story arc"
 
-Guidelines:
-1. Intelligently decide the number of episodes (typically 3-5, but can be 2-10) based on:
-   - Story complexity: Simple stories need fewer episodes, complex plots need more
-   - Character development needs: More characters or deeper arcs need more episodes
-   - Premise scope: Smaller scope = 2-3 episodes, medium scope = 3-5 episodes, larger scope = 5-10 episodes
-   - Narrative pacing: Ensure each episode has meaningful story progression
-2. Create 1-2 main characters (main: true) with depth and clear gender (male/female/other)
-3. You may add supporting characters (main: false) but limit total characters to 3-4
-4. Focus on episode-level narrative structure and story beats
-5. Each episode description should cover the full episode arc with key story developments
-6. Make the story emotionally engaging and dramatic
-
-VOICE CHARACTERIZATION (CRITICAL):
-7. For EVERY character, provide a detailed voice_description
-8. Include: tone (warm/harsh/soft), pitch (high/low/medium), pace (fast/slow/measured), accent (if any), emotional quality (cheerful/melancholic/stern), speaking style (formal/casual/fragmented)
-9. Example: "Warm contralto with slight huskiness, speaks deliberately with pauses, maternal and reassuring tone"
-10. Voice should match character personality and background
-
-Note: Scenes and assets will be generated in a later processing step. Focus on the high-level drama structure, character development, and episode narrative arcs."""
-
-        user_prompt = f"""Generate a short-form drama based on this premise:
-
-{premise}
-
-Important:
-- Analyze the premise and intelligently decide how many episodes are needed for a complete, well-paced story
-- Simple premises: 2-3 episodes
-- Standard premises: 3-5 episodes (most common)
-- Complex premises: 5-10 episodes
-- Create compelling characters with depth and clear motivations
-- Each episode description should capture the high level development and climax of the episode. Be concise and to the point.
-- Focus on narrative structure at the episode level
-
-VOICE CHARACTERIZATION REQUIREMENT:
-- For EVERY character: Provide detailed voice_description with tone, pitch, pace, accent, emotional quality, and speaking style
-- Voice should align with character's personality, age, background, and role in the story
-- Be specific and evocative (e.g., "Gravelly bass with Brooklyn accent, speaks in short bursts, sardonic and world-weary")
-
-Scenes and visual assets will be generated separately in a later step."""
+        # Get prompts from centralized system_prompts module
+        system_prompt = system_prompts.get_drama_generation_system_prompt(episode_guidance)
+        user_prompt = system_prompts.get_drama_generation_user_prompt(premise, episode_guidance)
 
         try:
             # Route to appropriate AI model
@@ -245,20 +217,7 @@ Scenes and visual assets will be generated separately in a later step."""
         Returns:
             Improved Drama object
         """
-        system_prompt = """You are an expert short-form drama editor. Improve dramas based on user feedback while maintaining the core story.
-
-Focus on:
-1. High-level narrative structure and episode arcs
-2. Character development and consistency
-3. Episode pacing and story beats
-4. Overall dramatic impact and emotional resonance
-
-VOICE CHARACTERIZATION (CRITICAL):
-- For EVERY character, provide detailed voice_description with tone, pitch, pace, accent, emotional quality, and speaking style
-- Maintain or enhance existing voice descriptions unless feedback specifically requests changes
-- Voice should align with character's personality, age, background, and role
-
-Note: Focus on drama, character, and episode levels. Scenes and assets will be handled in a later processing step."""
+        system_prompt = system_prompts.DRAMA_IMPROVEMENT_SYSTEM_PROMPT
 
         # Create simplified drama summary for the prompt
         drama_summary = {
@@ -291,35 +250,15 @@ Note: Focus on drama, character, and episode levels. Scenes and assets will be h
         characters_text = nl.join(f"- {char['id']}: {char['name']} ({'Main' if char['main'] else 'Supporting'}, {char['gender']}){nl}  Description: {char['description']}{nl}  Voice: {char['voice_description']}" for char in drama_summary['characters'])
         episodes_text = nl.join(f"{i+1}. {ep['title']}{nl}   {ep['description']}" for i, ep in enumerate(drama_summary['episodes']))
 
-        user_prompt = f"""Improve this drama based on the feedback:
-
-ORIGINAL DRAMA (High-Level Structure):
-Title: {drama_summary['title']}
-Description: {drama_summary['description']}
-Premise: {drama_summary['premise']}
-
-Characters:
-{characters_text}
-
-Episodes:
-{episodes_text}
-
-FEEDBACK:
-{feedback}
-
-Instructions:
-1. Keep the original premise and core story
-2. Apply the feedback to improve the drama structure, character development, and episode arcs
-3. Maintain character consistency and voice descriptions
-4. Focus on episode-level narrative improvements
-5. Each episode description should detail the key story beats and character developments
-
-VOICE CHARACTERIZATION REQUIREMENT:
-- For EVERY character: Include detailed voice_description
-- Maintain existing voice descriptions unless feedback requests voice changes
-- If adding new characters, provide comprehensive voice descriptions
-
-Scenes and visual assets will be generated in a later step. Focus on the high-level drama structure."""
+        # Get user prompt from centralized system_prompts module
+        user_prompt = system_prompts.get_drama_improvement_user_prompt(
+            title=drama_summary['title'],
+            description=drama_summary['description'],
+            premise=drama_summary['premise'],
+            characters_text=characters_text,
+            episodes_text=episodes_text,
+            feedback=feedback
+        )
 
         try:
             # Route to appropriate AI model
@@ -348,47 +287,21 @@ Scenes and visual assets will be generated in a later step. Focus on the high-le
         Returns:
             Critical feedback as a string
         """
-        system_prompt = """You are an expert short-form drama critic with deep knowledge of storytelling, character development, pacing, and audience engagement. Your role is to provide constructive, actionable feedback on drama scripts at the high level.
-
-Focus on:
-1. Overall story structure and narrative arc
-2. Episode pacing and story progression
-3. Character development, depth, and consistency across episodes
-4. Character motivations and believability
-5. Emotional impact and dramatic tension
-6. Episode-to-episode flow and coherence
-7. Strengths and areas for improvement
-8. VOICE CHARACTERIZATION: Evaluate voice descriptions for specificity, appropriateness to character, and distinctiveness across cast
-
-Provide honest, balanced feedback that highlights both what works well and what could be improved. Focus on the high-level drama structure - scenes and visual assets will be evaluated separately."""
+        system_prompt = system_prompts.DRAMA_CRITIQUE_SYSTEM_PROMPT
 
         # Build formatted lists
         nl = "\n"  # Can't use backslashes in f-string expressions
         characters_text = nl.join(f"- {char.id}: {char.name} ({'Main' if char.main else 'Supporting'}, {char.gender}){nl}  Description: {char.description}{nl}  Voice: {char.voice_description}" for char in drama.characters)
         episodes_text = nl.join(f"Episode {i+1}: {ep.title}{nl}Description: {ep.description}" for i, ep in enumerate(drama.episodes))
 
-        user_prompt = f"""Please critique this short-form drama. Focus on the overall narrative structure, character arcs, episode pacing, and storytelling quality at the high level:
-
-DRAMA:
-Title: {drama.title}
-Description: {drama.description}
-Premise: {drama.premise}
-
-Characters:
-{characters_text}
-
-Episodes:
-{episodes_text}
-
-Provide a comprehensive critique focusing on:
-1. Overall story structure and narrative coherence
-2. Character development and consistency across episodes
-3. Episode pacing and progression
-4. Emotional impact and dramatic effectiveness
-5. VOICE EVALUATION: Assess voice_description quality - Are they specific, distinct, and appropriate for each character?
-6. Suggestions for improving the high-level drama structure
-
-Note: This critique focuses on the drama, character, and episode levels. Scene-level details will be evaluated separately."""
+        # Get user prompt from centralized system_prompts module
+        user_prompt = system_prompts.get_drama_critique_user_prompt(
+            title=drama.title,
+            description=drama.description,
+            premise=drama.premise,
+            characters_text=characters_text,
+            episodes_text=episodes_text
+        )
 
         try:
             # Route to appropriate AI model
@@ -492,23 +405,14 @@ Note: This critique focuses on the drama, character, and episode levels. Scene-l
         Returns:
             Public R2 URL of the uploaded character image
         """
-        # Build character-focused prompt using character object
-        # Don't assume human - use the full character description which may include species
-        character_prompt = f"{character.description}. Gender: {character.gender}. Show from waist up, facing forward, clear facial features, expressive eyes."
-
-        # Explicitly reference the background image for aspect ratio enforcement
-        full_prompt = f"""Draw this character as a front half-body portrait on the reference image background provided.
-
-CHARACTER: {character_prompt}
-
-STYLE: Anime style, cartoon illustration, vibrant colors, clean lines, detailed character design.
-IMPORTANT: If the character description mentions an animal species (like dog, cat, corgi, etc.), draw them as that animal species, NOT as a human. Preserve all species characteristics.
-
-TECHNICAL: Use the EXACT same dimensions and aspect ratio as the reference image. Draw the character portrait on that background, maintaining the vertical 9:16 portrait orientation."""
+        # Generate prompt using centralized system_prompts module
+        full_prompt = system_prompts.get_character_portrait_prompt(
+            character_description=character.description,
+            gender=character.gender
+        )
 
         # Build reference list: always include 9:16 reference first
-        reference_9_16 = "https://pub-82a9c3c68d1a421f8e31796087e04132.r2.dev/9_16_reference.jpg"
-        all_references = [reference_9_16]
+        all_references = [system_prompts.REFERENCE_IMAGE_9_16]
         if references:
             all_references.extend(references)
 
@@ -516,7 +420,8 @@ TECHNICAL: Use the EXACT same dimensions and aspect ratio as the reference image
         upload_key = f"dramas/{drama_id}/characters/{character.id}.png"
         public_url = await self._generate_and_upload_image(full_prompt, all_references, upload_key)
 
-        # Create and add asset to character
+        # Create and add asset to character (use simple character description for asset prompt)
+        character_prompt = f"{character.description}. Gender: {character.gender}. Show from waist up, facing forward, clear facial features, expressive eyes."
         asset_id = f"{character.id}_portrait_front_halfbody"
         asset = Asset(
             id=asset_id,
@@ -549,22 +454,16 @@ TECHNICAL: Use the EXACT same dimensions and aspect ratio as the reference image
         # Get main characters
         main_characters = [char for char in drama.characters if char.main]
 
-        # Build cover image prompt
+        # Build character descriptions and generate prompt
         character_descriptions = ", ".join([f"{char.name} ({char.gender}): {char.description}" for char in main_characters])
-        cover_prompt = f"Create a dramatic cover image for the short-form drama '{drama.title}'. {drama.description}. Feature these main characters: {character_descriptions}. Show them in a dynamic, engaging composition that captures the drama's essence."
-
-        # Explicitly reference the background image for aspect ratio enforcement
-        full_prompt = f"""Draw the drama cover image on the reference image background provided.
-
-DRAMA COVER: {cover_prompt}
-
-STYLE: Anime style, dramatic composition, vibrant colors, cinematic lighting, eye-catching design suitable for a drama poster.
-
-IMPORTANT: Use the EXACT same dimensions and aspect ratio as the reference image. Create a compelling cover composition on that background, maintaining the vertical 9:16 portrait orientation."""
+        full_prompt = system_prompts.get_drama_cover_prompt(
+            title=drama.title,
+            description=drama.description,
+            character_descriptions=character_descriptions
+        )
 
         # Build reference list: always include 9:16 reference first, then character images
-        reference_9_16 = "https://pub-82a9c3c68d1a421f8e31796087e04132.r2.dev/9_16_reference.jpg"
-        all_references = [reference_9_16]
+        all_references = [system_prompts.REFERENCE_IMAGE_9_16]
 
         # Add character reference images if available
         for char in main_characters:
@@ -575,7 +474,8 @@ IMPORTANT: Use the EXACT same dimensions and aspect ratio as the reference image
         upload_key = f"dramas/{drama_id}/cover.png"
         public_url = await self._generate_and_upload_image(full_prompt, all_references, upload_key)
 
-        # Create and add asset to drama
+        # Create and add asset to drama (use simple cover description for asset prompt)
+        cover_prompt = f"Create a dramatic cover image for the short-form drama '{drama.title}'. {drama.description}. Feature these main characters: {character_descriptions}. Show them in a dynamic, engaging composition that captures the drama's essence."
         asset_id = f"{drama_id}_cover"
         asset = Asset(
             id=asset_id,
@@ -725,8 +625,12 @@ Create 3-5 cinematic scenes with 2 assets each (image + video):
         # Character audition videos are always 10 seconds
         duration = 10
 
-        # Build character audition prompt including voice description
-        audition_prompt = f"Character audition video for {character.name}: {character.description}. Voice: {character.voice_description}. Show the character in a dynamic pose, turning slightly and making expressive gestures that showcase their personality and vocal style. Anime style, smooth animation."
+        # Generate prompt using centralized system_prompts module
+        audition_prompt = system_prompts.get_character_audition_video_prompt(
+            character_name=character.name,
+            character_description=character.description,
+            voice_description=character.voice_description
+        )
 
         # Prepare API request
         headers = {
