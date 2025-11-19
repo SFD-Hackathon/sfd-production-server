@@ -89,10 +89,11 @@ def test_basic_structured_output():
         response = client.models.generate_content(
             model="gemini-3-pro-preview",
             contents=prompt,
-            config={
-                "response_mime_type": "application/json",
-                "response_schema": Recipe,
-            },
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=Recipe,
+                thinking_config=types.ThinkingConfig(thinking_level="low")
+            ),
         )
 
         print(f"\n✅ SUCCESS!")
@@ -154,10 +155,11 @@ def test_drama_structured_output():
         response = client.models.generate_content(
             model="gemini-3-pro-preview",
             contents=full_prompt,
-            config={
-                "response_mime_type": "application/json",
-                "response_schema": DramaStructure,
-            },
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=DramaStructure,
+                thinking_config=types.ThinkingConfig(thinking_level="low")
+            ),
         )
 
         print(f"\n✅ SUCCESS!")
