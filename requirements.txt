@@ -8,3 +8,4 @@ boto3==1.35.78
 python-dotenv==1.0.1
 requests==2.32.3
 gunicorn==21.2.0
+strawberry-graphql[fastapi]==0.243.0

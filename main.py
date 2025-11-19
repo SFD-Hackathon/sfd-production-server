@@ -9,12 +9,14 @@ from datetime import datetime
 import os
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
+from strawberry.fastapi import GraphQLRouter
 
 # Load environment variables
 load_dotenv()
 
 # Import routers
 from app.routers import dramas, jobs, characters, episodes, scenes, assets, asset_library
+from app.graphql_schema import schema
 
 # Version
 VERSION = "1.0.0"
@@ -77,6 +79,10 @@ app.include_router(episodes.router, prefix="/dramas", tags=["Episodes"])
 app.include_router(scenes.router, prefix="/dramas", tags=["Scenes"])
 app.include_router(assets.router, prefix="/dramas", tags=["Assets"])
 app.include_router(asset_library.router, prefix="/asset-library", tags=["Asset Library"])
+
+# GraphQL endpoint
+graphql_app = GraphQLRouter(schema)
+app.include_router(graphql_app, prefix="/graphql", tags=["GraphQL"])
 
 
 # Health check endpoint
