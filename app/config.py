@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 # Load .env file ONLY for local development
 # On Railway, environment variables are injected directly
 if os.getenv('ENVIRONMENT') != 'production':
-    load_dotenv()
+    load_dotenv(override=True)
     print("🔧 Local development mode: Loading .env file")
 else:
     print(f"☁️  Production deployment mode")
