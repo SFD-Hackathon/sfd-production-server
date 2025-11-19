@@ -144,7 +144,7 @@ Scenes and visual assets will be generated separately in a later step."""
     async def _generate_with_gemini(self, system_prompt: str, user_prompt: str) -> DramaLite:
         """Generate drama using Gemini 3 Pro Preview (Google) with low thinking mode"""
         if not self.gemini_client:
-            raise ValueError("Gemini client not initialized. Check OFFICIAL_GEMINI_API_KEY.")
+            raise ValueError("Gemini client not initialized. Check GEMINI_API_KEY.")
 
         # Combine system and user prompts for Gemini
         full_prompt = f"{system_prompt}\n\n{user_prompt}"
@@ -424,7 +424,7 @@ Note: This critique focuses on the drama, character, and episode levels. Scene-l
     async def _critique_with_gemini(self, system_prompt: str, user_prompt: str) -> str:
         """Generate critique using Gemini 3 Pro Preview (Google) with low thinking mode"""
         if not self.gemini_client:
-            raise ValueError("Gemini client not initialized. Check OFFICIAL_GEMINI_API_KEY.")
+            raise ValueError("Gemini client not initialized. Check GEMINI_API_KEY.")
 
         # Combine system and user prompts for Gemini
         full_prompt = f"{system_prompt}\n\n{user_prompt}"
