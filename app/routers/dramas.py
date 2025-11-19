@@ -843,6 +843,44 @@ async def generate_character_audition_video(
     )
 
 
+@router.get("/{drama_id}/cover_photo")
+async def get_cover_photo(drama_id: str):
+    """
+    Get drama cover photo URL
+
+    **Returns:**
+    - JSON with cover photo URL if it exists
+    - 404 if drama not found
+    - 404 if cover photo not generated yet
+
+    **Example:**
+    ```
+    GET /dramas/drama_123/cover_photo
+
+    Response:
+    {
+      "url": "https://pub-82a9c3c68d1a421f8e31796087e04132.r2.dev/dramas/drama_123/cover.png"
+    }
+    ```
+    """
+    # Get drama
+    drama = await storage.get_drama(drama_id)
+    if not drama:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Drama {drama_id} not found"
+        )
+
+    # Check if cover photo exists
+    if not drama.url:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Cover photo not generated yet. Call POST /dramas/{drama_id}/cover_photo to generate it."
+        )
+
+    return {"url": drama.url}
+
+
 @router.post("/{drama_id}/cover_photo", response_model=Drama)
 async def generate_cover_photo(drama_id: str):
     """
