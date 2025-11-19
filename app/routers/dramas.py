@@ -1,7 +1,7 @@
 """Drama management endpoints"""
 
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Query, Response
-from typing import Union
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Query, Response, File, UploadFile, Form
+from typing import Union, Optional
 import time
 import random
 import string
@@ -35,8 +35,15 @@ def generate_id(prefix: str = "drama") -> str:
     return f"{prefix}_{random_part}"
 
 
-async def process_drama_generation(job_id: str, drama_id: str, premise: str):
-    """Background task for drama generation"""
+async def process_drama_generation(job_id: str, drama_id: str, premise: str, reference_image_url: Optional[str] = None):
+    """Background task for drama generation
+
+    Args:
+        job_id: Job ID for tracking
+        drama_id: Drama ID
+        premise: Text premise for generation
+        reference_image_url: Optional URL to reference image for character generation
+    """
     try:
         # Update job status to processing
         job_manager.update_job_status(job_id, JobStatus.processing)
@@ -44,9 +51,16 @@ async def process_drama_generation(job_id: str, drama_id: str, premise: str):
         # Get initial hash to detect conflicts during entire job execution
         initial_hash = await storage.get_current_hash_from_id(drama_id)
 
-        # Generate drama using AI
+        # Generate drama using AI (pass reference_image_url if available)
         ai_service = get_ai_service()
-        drama = await ai_service.generate_drama(premise, drama_id)
+
+        # Store reference image URL in metadata if provided
+        generation_metadata = {}
+        if reference_image_url:
+            generation_metadata['reference_image_url'] = reference_image_url
+            print(f"Using reference image for generation: {reference_image_url}")
+
+        drama = await ai_service.generate_drama(premise, drama_id, metadata=generation_metadata)
 
         # Save to storage with hash verification (protects against drama created during AI generation)
         await storage.save_drama(drama, expected_hash=initial_hash)
@@ -182,47 +196,126 @@ async def process_drama_critique(job_id: str, drama_id: str):
 
 @router.post("", response_model=Union[Drama, JobResponse])
 async def create_drama(
-    request: Union[CreateFromPremise, CreateFromJSON],
     background_tasks: BackgroundTasks,
     response: Response,
+    # JSON body (for application/json requests)
+    request_body: Optional[Union[CreateFromPremise, CreateFromJSON]] = None,
+    # Form data (for multipart/form-data requests)
+    premise: Optional[str] = Form(None),
+    id: Optional[str] = Form(None),
+    reference_image: Optional[UploadFile] = File(None),
+    # Drama JSON (for multipart with complete drama object)
+    drama_json: Optional[str] = Form(None),
 ):
     """
-    Create a new drama (supports two modes).
+    Create a new drama (supports three modes).
 
-    **Mode 1 (Async)**: Provide "premise" field → AI generates drama + character images + cover image → Returns job ID (202)
-    **Mode 2 (Sync)**: Provide "drama" field → Saves drama as-is → Returns drama object (201)
+    **Mode 1 (Async - JSON)**: Provide "premise" field in JSON → AI generates drama + character images + cover image → Returns job ID (202)
+    **Mode 2 (Async - Multipart)**: Provide "premise" in form data + optional "reference_image" file → AI generates drama using reference → Returns job ID (202)
+    **Mode 3 (Sync)**: Provide "drama" field in JSON → Saves drama as-is → Returns drama object (201)
 
-    Mode 1 generates: ✅ Drama structure, ✅ Character portraits, ✅ Cover image
-    Mode 1 does NOT generate: ❌ Scene assets (use POST /dramas/{id}/generate)
+    Mode 1 & 2 generate: ✅ Drama structure, ✅ Character portraits, ✅ Cover image
+    Mode 1 & 2 do NOT generate: ❌ Scene assets (use POST /dramas/{id}/generate)
     """
-    # Check if this is premise-based (async) or JSON-based (sync)
-    if isinstance(request, CreateFromPremise) or hasattr(request, "premise"):
-        # Async mode - generate from premise
-        drama_id = request.id if hasattr(request, "id") and request.id else generate_id("drama")
+    # Determine which mode based on provided parameters
+
+    # Mode 2 & Mode 1: Premise-based (multipart form data or JSON)
+    if premise is not None:
+        # Mode 2: Multipart/form-data with optional reference_image
+        drama_id = id if id else generate_id("drama")
         job_id = generate_id("job")
+
+        # Save reference image if provided
+        reference_image_url = None
+        if reference_image and reference_image.filename:
+            # Save the reference image temporarily or to R2
+            from app.asset_library import AssetLibrary
+            import tempfile
+            import os
+
+            # Read file content
+            file_content = await reference_image.read()
+
+            # Upload to R2
+            lib = AssetLibrary(user_id="10000", project_name=drama_id)
+            asset_metadata = lib.upload_asset(
+                content=file_content,
+                asset_type="image",
+                tag="character",
+                filename=reference_image.filename,
+                metadata={
+                    'drama_id': drama_id,
+                    'source': 'reference_image',
+                    'type': 'character_reference'
+                }
+            )
+            reference_image_url = asset_metadata.get('public_url')
+            print(f"✓ Uploaded reference image: {reference_image_url}")
 
         # Create job
         job_manager.create_job(job_id, drama_id, JobType.generate_drama)
 
-        # Queue background task
-        background_tasks.add_task(process_drama_generation, job_id, drama_id, request.premise)
+        # Queue background task with reference image URL
+        background_tasks.add_task(
+            process_drama_generation,
+            job_id,
+            drama_id,
+            premise,
+            reference_image_url  # Pass the reference image URL
+        )
 
         # Set response status to 202 Accepted
         response.status_code = status.HTTP_202_ACCEPTED
 
-        # Return 202 Accepted with job info
         return JobResponse(
             dramaId=drama_id,
             jobId=job_id,
             status=JobStatus.pending,
             message=f"Drama generation job queued. Check status at: https://api.shortformdramas.com/dramas/{drama_id}/jobs/{job_id}",
         )
-    else:
-        # Sync mode - save provided drama
+
+    elif request_body and (isinstance(request_body, CreateFromPremise) or hasattr(request_body, "premise")):
+        # Mode 1: JSON with premise (original async mode)
+        drama_id = request_body.id if hasattr(request_body, "id") and request_body.id else generate_id("drama")
+        job_id = generate_id("job")
+
+        # Create job
+        job_manager.create_job(job_id, drama_id, JobType.generate_drama)
+
+        # Queue background task
+        background_tasks.add_task(process_drama_generation, job_id, drama_id, request_body.premise, None)
+
+        # Set response status to 202 Accepted
+        response.status_code = status.HTTP_202_ACCEPTED
+
+        return JobResponse(
+            dramaId=drama_id,
+            jobId=job_id,
+            status=JobStatus.pending,
+            message=f"Drama generation job queued. Check status at: https://api.shortformdramas.com/dramas/{drama_id}/jobs/{job_id}",
+        )
+
+    elif request_body and hasattr(request_body, "drama"):
+        # Mode 3: Sync mode - save provided drama
         response.status_code = status.HTTP_201_CREATED
-        drama = request.drama
+        drama = request_body.drama
         await storage.save_drama(drama)
         return drama
+
+    elif drama_json:
+        # Mode 3 (alternate): Sync mode via form data
+        import json as json_lib
+        drama_data = json_lib.loads(drama_json)
+        drama = Drama(**drama_data)
+        response.status_code = status.HTTP_201_CREATED
+        await storage.save_drama(drama)
+        return drama
+
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Must provide either 'premise' (async mode) or 'drama' (sync mode)"
+        )
 
 
 @router.get("", response_model=DramaListResponse)
