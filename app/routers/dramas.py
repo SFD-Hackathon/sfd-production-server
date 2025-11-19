@@ -51,16 +51,16 @@ async def process_drama_generation(job_id: str, drama_id: str, premise: str, ref
         # Get initial hash to detect conflicts during entire job execution
         initial_hash = await storage.get_current_hash_from_id(drama_id)
 
-        # Generate drama using AI (pass reference_image_url if available)
+        # Generate drama using AI
         ai_service = get_ai_service()
+        drama = await ai_service.generate_drama(premise, drama_id)
 
-        # Store reference image URL in metadata if provided
-        generation_metadata = {}
+        # If reference image URL provided, store it in drama metadata
         if reference_image_url:
-            generation_metadata['reference_image_url'] = reference_image_url
-            print(f"Using reference image for generation: {reference_image_url}")
-
-        drama = await ai_service.generate_drama(premise, drama_id, metadata=generation_metadata)
+            if not drama.metadata:
+                drama.metadata = {}
+            drama.metadata['reference_image_url'] = reference_image_url
+            print(f"Stored reference image URL in drama metadata: {reference_image_url}")
 
         # Save to storage with hash verification (protects against drama created during AI generation)
         await storage.save_drama(drama, expected_hash=initial_hash)
