@@ -6,12 +6,8 @@ AI-powered Drama Generation API with GPT-5 integration
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
-import os
 from contextlib import asynccontextmanager
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
+from app.config import get_settings
 
 # Import routers
 from app.routers import dramas, jobs, characters, episodes, scenes, assets
@@ -23,10 +19,11 @@ VERSION = "1.0.0"
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler"""
+    settings = get_settings()
     # Startup
-    print(f"🚀 Drama API Server v{VERSION} starting...")
-    print(f"📦 R2 Bucket: {os.getenv('R2_BUCKET', 'sfd-production')}")
-    print(f"🤖 GPT Model: {os.getenv('GPT_MODEL', 'gpt-5')}")
+    print(f"🚀 Drama API Server v{settings.version} starting...")
+    print(f"📦 R2 Bucket: {settings.r2_bucket}")
+    print(f"🤖 GPT Model: {settings.gpt_model}")
     yield
     # Shutdown
     print("👋 Drama API Server shutting down...")
@@ -108,11 +105,12 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-
-    port = int(os.getenv("PORT", "8000"))
+    
+    settings = get_settings()
+    
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=port,
-        reload=os.getenv("ENVIRONMENT") != "production",
+        port=settings.port,
+        reload=settings.environment != "production",
     )

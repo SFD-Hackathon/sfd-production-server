@@ -2,10 +2,12 @@
 
 import os
 import json
+import hashlib
 import boto3
 from botocore.config import Config
 from typing import Optional, List, Dict, Any, Tuple
 from app.models import Drama, Asset
+from app.config import get_settings
 
 
 class StorageConflictError(Exception):
@@ -18,26 +20,25 @@ class R2Storage:
 
     def __init__(self):
         """Initialize R2 storage client"""
-        # R2 credentials from environment
-        account_id = os.getenv("R2_ACCOUNT_ID")
-        access_key_id = os.getenv("R2_ACCESS_KEY_ID")
-        secret_access_key = os.getenv("R2_SECRET_ACCESS_KEY")
-        self.bucket_name = os.getenv("R2_BUCKET", "sfd-production")
-        self.public_url_base = os.getenv("R2_PUBLIC_URL", "https://pub-82a9c3c68d1a421f8e31796087e04132.r2.dev")
+        self.settings = get_settings()
+        
+        # R2 credentials from settings
+        self.bucket_name = self.settings.r2_bucket
+        self.public_url_base = self.settings.r2_public_url
 
         # Construct R2 endpoint
-        if account_id:
-            endpoint_url = f"https://{account_id}.r2.cloudflarestorage.com"
+        if self.settings.r2_account_id:
+            endpoint_url = f"https://{self.settings.r2_account_id}.r2.cloudflarestorage.com"
         else:
-            # Fallback for local development
-            endpoint_url = os.getenv("R2_ENDPOINT_URL", "http://localhost:9000")
+            # Fallback for local development or explicit override
+            endpoint_url = self.settings.r2_endpoint_url or "http://localhost:9000"
 
         # Create S3 client configured for R2
         self.s3_client = boto3.client(
             "s3",
             endpoint_url=endpoint_url,
-            aws_access_key_id=access_key_id,
-            aws_secret_access_key=secret_access_key,
+            aws_access_key_id=self.settings.r2_access_key_id,
+            aws_secret_access_key=self.settings.r2_secret_access_key,
             config=Config(signature_version="s3v4"),
             region_name="auto",  # R2 uses 'auto' region
         )
@@ -134,7 +135,7 @@ class R2Storage:
 
     async def delete_drama(self, drama_id: str) -> bool:
         """
-        Delete drama from R2 storage
+        Delete drama and all associated assets from R2 storage
 
         Args:
             drama_id: ID of drama to delete
@@ -143,9 +144,41 @@ class R2Storage:
             True if deleted, False if not found
         """
         try:
-            key = self._get_drama_key(drama_id)
-            self.s3_client.delete_object(Bucket=self.bucket_name, Key=key)
+            # List all objects with the drama prefix
+            prefix = f"dramas/{drama_id}/"
+            
+            # Use paginator to handle large number of objects
+            paginator = self.s3_client.get_paginator('list_objects_v2')
+            pages = paginator.paginate(Bucket=self.bucket_name, Prefix=prefix)
+            
+            objects_to_delete = []
+            for page in pages:
+                if 'Contents' in page:
+                    for obj in page['Contents']:
+                        objects_to_delete.append({'Key': obj['Key']})
+            
+            if not objects_to_delete:
+                # If no objects found, try checking just the drama.json directly
+                # (though it should have been caught by prefix search)
+                key = self._get_drama_key(drama_id)
+                try:
+                    self.s3_client.head_object(Bucket=self.bucket_name, Key=key)
+                    # If it exists but wasn't in prefix list (unlikely), delete it
+                    self.s3_client.delete_object(Bucket=self.bucket_name, Key=key)
+                    return True
+                except:
+                    return False
+
+            # Delete objects in batches of 1000 (S3 limit)
+            for i in range(0, len(objects_to_delete), 1000):
+                batch = objects_to_delete[i:i+1000]
+                self.s3_client.delete_objects(
+                    Bucket=self.bucket_name,
+                    Delete={'Objects': batch}
+                )
+                
             return True
+            
         except Exception as e:
             print(f"Error deleting drama {drama_id}: {e}")
             return False
@@ -153,6 +186,10 @@ class R2Storage:
     async def list_dramas(self, limit: int = 100, cursor: Optional[str] = None) -> tuple[List[Drama], Optional[str]]:
         """
         List dramas with pagination
+
+        WARNING: This implementation is inefficient for large datasets as it fetches and parses
+        each JSON file. In a production environment with many dramas, metadata should be
+        stored in a proper database (SQL/NoSQL) for efficient querying and pagination.
 
         Args:
             limit: Maximum number of dramas to return
@@ -178,13 +215,15 @@ class R2Storage:
             dramas = []
             if "Contents" in response:
                 for obj in response["Contents"]:
-                    try:
-                        drama_response = self.s3_client.get_object(Bucket=self.bucket_name, Key=obj["Key"])
-                        drama_data = json.loads(drama_response["Body"].read())
-                        dramas.append(Drama(**drama_data))
-                    except Exception as e:
-                        print(f"Error loading drama from {obj['Key']}: {e}")
-                        continue
+                    # Filter for drama.json files only
+                    if obj["Key"].endswith("/drama.json"):
+                        try:
+                            drama_response = self.s3_client.get_object(Bucket=self.bucket_name, Key=obj["Key"])
+                            drama_data = json.loads(drama_response["Body"].read())
+                            dramas.append(Drama(**drama_data))
+                        except Exception as e:
+                            print(f"Error loading drama from {obj['Key']}: {e}")
+                            continue
 
             # Get next cursor
             next_cursor = response.get("NextContinuationToken")

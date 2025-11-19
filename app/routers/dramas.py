@@ -1,6 +1,6 @@
 """Drama management endpoints"""
 
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Query
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Query, Response
 from typing import Union
 import time
 import random
@@ -25,6 +25,7 @@ from app.models import (
 from app.storage import storage
 from app.ai_service import get_ai_service
 from app.job_manager import job_manager
+from app.config import get_settings
 
 router = APIRouter()
 
@@ -33,6 +34,40 @@ def generate_id(prefix: str = "drama") -> str:
     """Generate a random ID"""
     random_part = "".join(random.choices(string.ascii_lowercase + string.digits, k=12))
     return f"{prefix}_{random_part}"
+
+
+async def _generate_images_for_drama(drama: Drama, drama_id: str):
+    """Helper to generate character images and cover image for a drama"""
+    ai_service = get_ai_service()
+    
+    # Generate character images for all characters in parallel
+    async def generate_char_image(character):
+        if not character.url:  # Only generate if character doesn't have an image
+            try:
+                # Generate image asynchronously
+                image_url = await ai_service.generate_character_image(
+                    drama_id=drama_id,
+                    character=character,
+                )
+                character.url = image_url
+                print(f"✓ Generated image for character: {character.name}")
+            except Exception as char_error:
+                print(f"Warning: Failed to generate image for character {character.id}: {char_error}")
+
+    # Generate all character images concurrently
+    await asyncio.gather(*[generate_char_image(char) for char in drama.characters])
+
+    # Generate drama cover image featuring main characters
+    try:
+        cover_url = await ai_service.generate_drama_cover_image(
+            drama_id=drama_id,
+            drama=drama,
+        )
+        # Set drama url to cover image
+        drama.url = cover_url
+        print(f"✓ Generated drama cover image")
+    except Exception as cover_error:
+        print(f"Warning: Failed to generate drama cover image: {cover_error}")
 
 
 async def process_drama_generation(job_id: str, drama_id: str, premise: str):
@@ -54,33 +89,8 @@ async def process_drama_generation(job_id: str, drama_id: str, premise: str):
         # Compute hash after first save for conflict detection during image generation
         drama_hash = storage._compute_drama_hash(drama)
 
-        # Generate character images for all characters in parallel
-        async def generate_char_image(character):
-            try:
-                # Generate image asynchronously
-                image_url = await ai_service.generate_character_image(
-                    drama_id=drama_id,
-                    character=character,
-                )
-                character.url = image_url
-                print(f"✓ Generated image for character: {character.name}")
-            except Exception as char_error:
-                print(f"Warning: Failed to generate image for character {character.id}: {char_error}")
-
-        # Generate all character images concurrently
-        await asyncio.gather(*[generate_char_image(char) for char in drama.characters])
-
-        # Generate drama cover image featuring main characters
-        try:
-            cover_url = await ai_service.generate_drama_cover_image(
-                drama_id=drama_id,
-                drama=drama,
-            )
-            # Set drama url to cover image
-            drama.url = cover_url
-            print(f"✓ Generated drama cover image")
-        except Exception as cover_error:
-            print(f"Warning: Failed to generate drama cover image: {cover_error}")
+        # Generate images
+        await _generate_images_for_drama(drama, drama_id)
 
         # Save updated drama with hash verification to detect concurrent modifications
         await storage.save_drama(drama, expected_hash=drama_hash)
@@ -117,34 +127,8 @@ async def process_drama_improvement(job_id: str, original_id: str, improved_id: 
         # Compute hash after first save for conflict detection during image generation
         drama_hash = storage._compute_drama_hash(improved_drama)
 
-        # Generate character images for characters without URLs in parallel
-        async def generate_char_image(character):
-            if not character.url:  # Only generate if character doesn't have an image
-                try:
-                    # Generate image asynchronously
-                    image_url = await ai_service.generate_character_image(
-                        drama_id=improved_id,
-                        character=character,
-                    )
-                    character.url = image_url
-                    print(f"✓ Generated image for character: {character.name}")
-                except Exception as char_error:
-                    print(f"Warning: Failed to generate image for character {character.id}: {char_error}")
-
-        # Generate all character images concurrently
-        await asyncio.gather(*[generate_char_image(char) for char in improved_drama.characters])
-
-        # Generate drama cover image featuring main characters
-        try:
-            cover_url = await ai_service.generate_drama_cover_image(
-                drama_id=improved_id,
-                drama=improved_drama,
-            )
-            # Set drama url to cover image
-            improved_drama.url = cover_url
-            print(f"✓ Generated drama cover image")
-        except Exception as cover_error:
-            print(f"Warning: Failed to generate drama cover image: {cover_error}")
+        # Generate images (only for new characters or missing images)
+        await _generate_images_for_drama(improved_drama, improved_id)
 
         # Save updated drama with hash verification to detect concurrent modifications
         await storage.save_drama(improved_drama, expected_hash=drama_hash)
@@ -184,6 +168,7 @@ async def process_drama_critique(job_id: str, drama_id: str):
 async def create_drama(
     request: Union[CreateFromPremise, CreateFromJSON],
     background_tasks: BackgroundTasks,
+    response: Response,
 ):
     """
     Create a new drama
@@ -200,6 +185,8 @@ async def create_drama(
     - Returns immediately with 201 Created
     - Drama is stored directly without AI generation
     """
+    settings = get_settings()
+    
     # Check if this is premise-based (async) or JSON-based (sync)
     if isinstance(request, CreateFromPremise) or hasattr(request, "premise"):
         # Async mode - generate from premise
@@ -212,12 +199,15 @@ async def create_drama(
         # Queue background task
         background_tasks.add_task(process_drama_generation, job_id, drama_id, request.premise)
 
+        # Set status code to 202 Accepted
+        response.status_code = status.HTTP_202_ACCEPTED
+
         # Return 202 Accepted with job info
         return JobResponse(
             dramaId=drama_id,
             jobId=job_id,
             status=JobStatus.pending,
-            message=f"Drama generation job queued. Check status at: https://api.shortformdramas.com/dramas/{drama_id}/jobs/{job_id}",
+            message=f"Drama generation job queued. Check status at: {settings.api_base_url}/dramas/{drama_id}/jobs/{job_id}",
         )
     else:
         # Sync mode - save provided drama
@@ -343,13 +333,15 @@ async def improve_drama(
     # Queue background task
     background_tasks.add_task(process_drama_improvement, job_id, drama_id, improved_id, request.feedback)
 
+    settings = get_settings()
+
     # Return response
     return ImproveDramaResponse(
         originalId=drama_id,
         improvedId=improved_id,
         jobId=job_id,
         status=JobStatus.pending,
-        message=f"Drama improvement job queued. Check status at: https://api.shortformdramas.com/dramas/{improved_id}/jobs/{job_id}",
+        message=f"Drama improvement job queued. Check status at: {settings.api_base_url}/dramas/{improved_id}/jobs/{job_id}",
     )
 
 
@@ -417,12 +409,14 @@ async def critique_drama(
     # Queue background task
     background_tasks.add_task(process_drama_critique, job_id, drama_id)
 
+    settings = get_settings()
+
     # Return response
     return CriticResponse(
         dramaId=drama_id,
         jobId=job_id,
         status=JobStatus.pending,
-        message=f"Drama critique job queued. Check status and retrieve feedback at: https://api.shortformdramas.com/dramas/{drama_id}/jobs/{job_id}",
+        message=f"Drama critique job queued. Check status and retrieve feedback at: {settings.api_base_url}/dramas/{drama_id}/jobs/{job_id}",
     )
 
 
@@ -583,10 +577,12 @@ async def generate_character_audition_video(
     # Queue background task
     background_tasks.add_task(process_character_audition_video, job_id, drama_id, character_id)
 
+    settings = get_settings()
+
     # Return response
     return JobResponse(
         dramaId=drama_id,
         jobId=job_id,
         status=JobStatus.pending,
-        message=f"Character audition video generation queued. Check status at: https://api.shortformdramas.com/dramas/{drama_id}/jobs/{job_id}",
+        message=f"Character audition video generation queued. Check status at: {settings.api_base_url}/dramas/{drama_id}/jobs/{job_id}",
     )
