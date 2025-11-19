@@ -68,6 +68,15 @@ async def process_drama_generation(job_id: str, drama_id: str, premise: str, ref
         # Compute hash after first save for conflict detection during image generation
         drama_hash = storage._compute_drama_hash(drama)
 
+        # Print initial drama DAG JSON (before image generation)
+        drama_json_initial = drama.model_dump_json(indent=2)
+        print(f"\n{'='*80}")
+        print(f"DRAMA DAG READY (INITIAL): {drama_id}")
+        print(f"{'='*80}")
+        print(f"Drama DAG JSON (before image generation):")
+        print(drama_json_initial)
+        print(f"{'='*80}\n")
+
         # Generate character images for all characters in parallel
         async def generate_char_image(character):
             try:
@@ -98,6 +107,15 @@ async def process_drama_generation(job_id: str, drama_id: str, premise: str, ref
 
         # Save updated drama with hash verification to detect concurrent modifications
         await storage.save_drama(drama, expected_hash=drama_hash)
+
+        # Print drama DAG JSON
+        drama_json = drama.model_dump_json(indent=2)
+        print(f"\n{'='*80}")
+        print(f"DRAMA CREATION COMPLETED: {drama_id}")
+        print(f"{'='*80}")
+        print(f"Drama DAG JSON:")
+        print(drama_json)
+        print(f"{'='*80}\n")
 
         # Update job status to completed
         job_manager.update_job_status(job_id, JobStatus.completed, result={"dramaId": drama_id})
@@ -518,6 +536,17 @@ async def generate_drama_assets(drama_id: str, background_tasks: BackgroundTasks
 
             logger.info(f"Filtered DAG to {len(filtered_nodes)} episode-related nodes")
 
+            # Print initial drama DAG JSON (before asset generation)
+            initial_drama = await storage.get_drama(drama_id)
+            if initial_drama:
+                drama_json_initial = initial_drama.model_dump_json(indent=2)
+                print(f"\n{'='*80}")
+                print(f"DRAMA DAG READY (INITIAL): {drama_id}")
+                print(f"{'='*80}")
+                print(f"Drama DAG JSON (before asset generation):")
+                print(drama_json_initial)
+                print(f"{'='*80}\n")
+
             # Execute filtered DAG manually (don't call execute_dag which rebuilds)
             # Get execution order
             levels = executor.topological_sort(filtered_dag)
@@ -540,6 +569,17 @@ async def generate_drama_assets(drama_id: str, background_tasks: BackgroundTasks
 
             # Get final status
             result = executor.get_execution_status()
+
+            # Print drama DAG JSON after generation completes
+            updated_drama = await storage.get_drama(drama_id)
+            if updated_drama:
+                drama_json = updated_drama.model_dump_json(indent=2)
+                print(f"\n{'='*80}")
+                print(f"DRAMA GENERATION COMPLETED: {drama_id}")
+                print(f"{'='*80}")
+                print(f"Drama DAG JSON:")
+                print(drama_json)
+                print(f"{'='*80}\n")
 
             # Update job with results
             job_manager.update_job_status(
