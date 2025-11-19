@@ -59,11 +59,15 @@ query {
 }
 ```
 
-### Get Cover Photo URL
+### Get Drama with Cover Photo
 
 ```graphql
 query {
-  coverPhoto(dramaId: "drama_123")
+  drama(id: "drama_123") {
+    id
+    title
+    coverPhoto
+  }
 }
 ```
 
@@ -178,6 +182,7 @@ type Drama {
   description: String!
   premise: String!
   url: String
+  coverPhoto: String
   characters: [Character!]!
   episodes: [Episode!]!
 }

@@ -37,6 +37,11 @@ class Drama:
     characters: List[Character]
     episodes: List[Episode]
 
+    @strawberry.field
+    def cover_photo(self) -> Optional[str]:
+        """Alias for url field - the drama cover photo URL"""
+        return self.url
+
 
 # Input types for mutations
 @strawberry.input
@@ -126,13 +131,6 @@ class Query:
 
         return dramas
 
-    @strawberry.field
-    async def cover_photo(self, drama_id: str) -> Optional[str]:
-        """Get drama cover photo URL"""
-        drama_pydantic = await storage.get_drama(drama_id)
-        if not drama_pydantic:
-            return None
-        return drama_pydantic.url
 
 
 # Mutation type
