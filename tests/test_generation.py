@@ -551,7 +551,7 @@ def test_create_drama_from_premise_with_image(client: APIClient):
     drama_id = f"test_drama_with_ref_{int(time.time())}"
 
     # Load reference image
-    reference_image_path = TEST_DIR / "cartoon_boy_character.jpg"
+    reference_image_path = TEST_DIR / "assets" / "cartoon_boy_character.jpg"
     assert reference_image_path.exists(), f"Reference image not found: {reference_image_path}"
 
     print(f"Creating drama with premise...")
