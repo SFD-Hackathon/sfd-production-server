@@ -199,10 +199,11 @@ class TestSoraProvider:
 
         print(f"✓ API Base: {provider.api_base}")
 
-    @pytest.mark.asyncio
     @pytest.mark.slow
-    async def test_generate_video_simple(self, provider):
+    def test_generate_video_simple(self, provider):
         """Test basic video generation (slow - can take 1-2 minutes)"""
+        import tempfile
+
         prompt = "A cartoon dog running happily in a park, anime style, smooth animation"
         duration = 5  # 5 seconds for faster test
 
@@ -210,42 +211,59 @@ class TestSoraProvider:
         print(f"Prompt: {prompt}")
         print(f"Duration: {duration}s")
 
-        # Generate video
-        video_url = await provider.generate_video(
+        # Create temp file for output
+        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as f:
+            output_path = f.name
+
+        try:
+            # Generate video using blocking method
+            result_path = provider.generate_video_blocking(
+                prompt=prompt,
+                output_path=output_path,
+                duration=duration,
+                max_wait_time=300  # 5 minutes max
+            )
+
+            # Verify file was created
+            import os
+            assert os.path.exists(result_path), "Video file should exist"
+            assert os.path.getsize(result_path) > 0, "Video file should not be empty"
+
+            print(f"✓ Video generated successfully: {result_path}")
+        finally:
+            # Cleanup temp file
+            import os
+            if os.path.exists(output_path):
+                os.unlink(output_path)
+
+    @pytest.mark.slow
+    def test_submit_and_poll_job(self, provider):
+        """Test video job submission and polling (non-blocking test)"""
+        prompt = "A simple test animation, cartoon style"
+        duration = 5
+
+        print(f"\n🎬 Testing Sora job submission and polling...")
+        print(f"Prompt: {prompt}")
+
+        # Submit job
+        task_id = provider.submit_job(
             prompt=prompt,
-            duration=duration
+            duration=duration,
+            aspect_ratio="9:16"
         )
 
-        # Verify we got a URL back
-        assert isinstance(video_url, str), "Expected string URL"
-        assert len(video_url) > 0, "Video URL should not be empty"
-        assert video_url.startswith("http"), "Should be a valid URL"
+        assert isinstance(task_id, str), "Expected string task ID"
+        assert len(task_id) > 0, "Task ID should not be empty"
+        print(f"✓ Job submitted: {task_id}")
 
-        print(f"✓ Video generated successfully: {video_url}")
+        # Poll status once (don't wait for completion)
+        status = provider.poll_status(task_id)
 
-    @pytest.mark.asyncio
-    @pytest.mark.slow
-    async def test_generate_video_with_reference(self, provider):
-        """Test video generation with reference image (slow)"""
-        prompt = "Character walking forward confidently, anime style"
-        duration = 5
-        reference_image = "https://pub-82a9c3c68d1a421f8e31796087e04132.r2.dev/dramas/test_drama/characters/test_char.png"
+        assert isinstance(status, dict), "Expected dict status"
+        assert "status" in status, "Status should have 'status' key"
+        assert status["status"] in ["pending", "running", "completed", "failed"], f"Invalid status: {status['status']}"
 
-        print(f"\n🎬 Testing Sora video generation with reference...")
-        print(f"Prompt: {prompt}")
-        print(f"Reference: {reference_image}")
-
-        # Note: Sora provider might not support reference images - check implementation
-        try:
-            video_url = await provider.generate_video(
-                prompt=prompt,
-                duration=duration,
-                reference_image=reference_image
-            )
-            print(f"✓ Video generated with reference: {video_url}")
-        except TypeError:
-            print(f"⚠️  Sora provider doesn't support reference_image parameter")
-            pytest.skip("Reference image not supported by current Sora implementation")
+        print(f"✓ Job status: {status['status']}")
 
 
 class TestProviderPerformance:
