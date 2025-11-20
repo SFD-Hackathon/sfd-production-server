@@ -42,6 +42,43 @@ class Character:
     voice_description: str
     main: bool
     url: Optional[str] = None
+    _drama_id: strawberry.Private[str] = ""
+
+    @strawberry.field
+    def jobs(self) -> List["Job"]:
+        """Get jobs for this character"""
+        job_storage = get_job_storage()
+        jobs_data = job_storage.list_jobs(drama_id=self._drama_id)
+
+        # Filter jobs related to this character
+        character_jobs = [
+            job for job in jobs_data
+            if job.get("asset_id") == self.id or
+               job.get("metadata", {}).get("character_id") == self.id
+        ]
+
+        return [
+            Job(
+                jobId=job_data["job_id"],
+                dramaId=job_data.get("drama_id", ""),
+                assetId=job_data.get("asset_id"),
+                type=job_data.get("type", job_data.get("job_type", "unknown")),
+                status=job_data["status"],
+                prompt=job_data.get("prompt"),
+                r2Url=job_data.get("r2_url"),
+                createdAt=job_data["created_at"],
+                startedAt=job_data.get("started_at"),
+                completedAt=job_data.get("completed_at"),
+                error=job_data.get("error"),
+                parentJobId=job_data.get("parent_job_id"),
+                childJobs=job_data.get("child_jobs"),
+                totalJobs=job_data.get("total_jobs"),
+                completedJobs=job_data.get("completed_jobs"),
+                failedJobs=job_data.get("failed_jobs"),
+                runningJobs=job_data.get("running_jobs"),
+            )
+            for job_data in character_jobs
+        ]
 
 
 @strawberry.type
@@ -50,6 +87,43 @@ class Scene:
     description: str
     imageUrl: Optional[str] = strawberry.field(default=None, name="imageUrl")
     videoUrl: Optional[str] = strawberry.field(default=None, name="videoUrl")
+    _drama_id: strawberry.Private[str] = ""
+    _episode_id: strawberry.Private[str] = ""
+
+    @strawberry.field
+    def jobs(self) -> List["Job"]:
+        """Get jobs for this scene"""
+        job_storage = get_job_storage()
+        jobs_data = job_storage.list_jobs(drama_id=self._drama_id)
+
+        # Filter jobs related to this scene
+        scene_jobs = [
+            job for job in jobs_data
+            if job.get("metadata", {}).get("scene_id") == self.id
+        ]
+
+        return [
+            Job(
+                jobId=job_data["job_id"],
+                dramaId=job_data.get("drama_id", ""),
+                assetId=job_data.get("asset_id"),
+                type=job_data.get("type", job_data.get("job_type", "unknown")),
+                status=job_data["status"],
+                prompt=job_data.get("prompt"),
+                r2Url=job_data.get("r2_url"),
+                createdAt=job_data["created_at"],
+                startedAt=job_data.get("started_at"),
+                completedAt=job_data.get("completed_at"),
+                error=job_data.get("error"),
+                parentJobId=job_data.get("parent_job_id"),
+                childJobs=job_data.get("child_jobs"),
+                totalJobs=job_data.get("total_jobs"),
+                completedJobs=job_data.get("completed_jobs"),
+                failedJobs=job_data.get("failed_jobs"),
+                runningJobs=job_data.get("running_jobs"),
+            )
+            for job_data in scene_jobs
+        ]
 
 
 @strawberry.type
@@ -59,6 +133,43 @@ class Episode:
     description: str
     url: Optional[str] = None
     scenes: List[Scene]
+    _drama_id: strawberry.Private[str] = ""
+
+    @strawberry.field
+    def jobs(self) -> List["Job"]:
+        """Get jobs for this episode"""
+        job_storage = get_job_storage()
+        jobs_data = job_storage.list_jobs(drama_id=self._drama_id)
+
+        # Filter jobs related to this episode
+        episode_jobs = [
+            job for job in jobs_data
+            if job.get("metadata", {}).get("episode_id") == self.id or
+               job.get("asset_id") == self.id
+        ]
+
+        return [
+            Job(
+                jobId=job_data["job_id"],
+                dramaId=job_data.get("drama_id", ""),
+                assetId=job_data.get("asset_id"),
+                type=job_data.get("type", job_data.get("job_type", "unknown")),
+                status=job_data["status"],
+                prompt=job_data.get("prompt"),
+                r2Url=job_data.get("r2_url"),
+                createdAt=job_data["created_at"],
+                startedAt=job_data.get("started_at"),
+                completedAt=job_data.get("completed_at"),
+                error=job_data.get("error"),
+                parentJobId=job_data.get("parent_job_id"),
+                childJobs=job_data.get("child_jobs"),
+                totalJobs=job_data.get("total_jobs"),
+                completedJobs=job_data.get("completed_jobs"),
+                failedJobs=job_data.get("failed_jobs"),
+                runningJobs=job_data.get("running_jobs"),
+            )
+            for job_data in episode_jobs
+        ]
 
 
 @strawberry.type
@@ -87,6 +198,35 @@ class Drama:
     def cover_photo(self) -> Optional[str]:
         """Alias for url field - the drama cover photo URL"""
         return self.url
+
+    @strawberry.field
+    def jobs(self) -> List["Job"]:
+        """Get all jobs for this drama"""
+        job_storage = get_job_storage()
+        jobs_data = job_storage.list_jobs(drama_id=self.id)
+
+        return [
+            Job(
+                jobId=job_data["job_id"],
+                dramaId=job_data.get("drama_id", ""),
+                assetId=job_data.get("asset_id"),
+                type=job_data.get("type", job_data.get("job_type", "unknown")),
+                status=job_data["status"],
+                prompt=job_data.get("prompt"),
+                r2Url=job_data.get("r2_url"),
+                createdAt=job_data["created_at"],
+                startedAt=job_data.get("started_at"),
+                completedAt=job_data.get("completed_at"),
+                error=job_data.get("error"),
+                parentJobId=job_data.get("parent_job_id"),
+                childJobs=job_data.get("child_jobs"),
+                totalJobs=job_data.get("total_jobs"),
+                completedJobs=job_data.get("completed_jobs"),
+                failedJobs=job_data.get("failed_jobs"),
+                runningJobs=job_data.get("running_jobs"),
+            )
+            for job_data in jobs_data
+        ]
 
 
 # Input types for mutations
@@ -121,6 +261,7 @@ class Query:
                     voice_description=char.voice_description,
                     main=char.main,
                     url=char.url,
+                    _drama_id=drama_pydantic.id,
                 )
                 for char in drama_pydantic.characters
             ],
@@ -130,12 +271,15 @@ class Query:
                     title=ep.title,
                     description=ep.description,
                     url=ep.url,
+                    _drama_id=drama_pydantic.id,
                     scenes=[
                         Scene(
                             id=scene.id,
                             description=scene.description,
                             imageUrl=scene.image_url,
                             videoUrl=scene.video_url,
+                            _drama_id=drama_pydantic.id,
+                            _episode_id=ep.id,
                         )
                         for scene in ep.scenes
                     ],
@@ -301,6 +445,7 @@ class Mutation:
             voice_description=character.voice_description,
             main=character.main,
             url=character.url,
+            _drama_id=drama_id,
         )
 
     @strawberry.mutation
@@ -345,6 +490,7 @@ class Mutation:
                     voice_description=char.voice_description,
                     main=char.main,
                     url=char.url,
+                    _drama_id=drama_pydantic.id,
                 )
                 for char in drama_pydantic.characters
             ],
@@ -354,12 +500,15 @@ class Mutation:
                     title=ep.title,
                     description=ep.description,
                     url=ep.url,
+                    _drama_id=drama_pydantic.id,
                     scenes=[
                         Scene(
                             id=scene.id,
                             description=scene.description,
                             imageUrl=scene.image_url,
                             videoUrl=scene.video_url,
+                            _drama_id=drama_pydantic.id,
+                            _episode_id=ep.id,
                         )
                         for scene in ep.scenes
                     ],
