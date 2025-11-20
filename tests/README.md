@@ -49,8 +49,16 @@ python tests/test_drama_create.py
 
 ## Test Assets
 
+Located in `tests/assets/`:
+
 ### `cartoon_boy_character.jpg`
 Reference image for character generation tests (101 KB).
+
+### `test_video_1.mp4`
+First test video for video stitching tests (~5.7 MB).
+
+### `test_video_2.mp4`
+Second test video for video stitching tests (~6.1 MB).
 
 ## Prerequisites
 
