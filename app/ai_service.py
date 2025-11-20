@@ -19,6 +19,7 @@ from app.models import (
     AssetKind,
 )
 from app.storage import storage
+from app.image_generation import generate_image_async
 
 
 class AIService:
@@ -47,11 +48,6 @@ class AIService:
             self.gemini_client = genai.Client(api_key=self.gemini_api_key)
         else:
             self.gemini_client = None
-
-        # Gemini configuration for image generation (via t8star.cn)
-        self.nano_banana_api_key = os.getenv("NANO_BANANA_API_KEY")
-        self.nano_banana_api_base = os.getenv("NANO_BANANA_API_BASE")
-        self.nano_banana_model = "gemini-2.5-flash-image"
 
         # Sora configuration for video generation
         self.sora_api_key = os.getenv("SORA_API_KEY")
@@ -451,8 +447,8 @@ Note: This critique focuses on the drama, character, and episode levels. Scene-l
         upload_key: str,
     ) -> str:
         """
-        Helper method to generate image using Gemini and upload to R2
-        Includes retry logic with up to 2 retries (3 total attempts)
+        Helper method to generate image using Gemini and upload to R2.
+        Uses consolidated image_generation module with retry logic.
 
         Args:
             prompt: Full prompt for image generation
@@ -462,86 +458,21 @@ Note: This critique focuses on the drama, character, and episode levels. Scene-l
         Returns:
             Public R2 URL of the uploaded image
         """
-        if not self.nano_banana_api_key or not self.nano_banana_api_base:
-            raise ValueError(
-                "NANO_BANANA_API_KEY and NANO_BANANA_API_BASE environment variables are required"
-            )
-
-        # Build request content
-        content = [{"type": "text", "text": prompt}]
-
-        # Add reference images
-        for ref in references:
-            content.append({"type": "image_url", "image_url": {"url": ref}})
-
-        # Build API request payload
-        payload = {
-            "model": self.nano_banana_model,
-            "messages": [{"role": "user", "content": content}],
-            "stream": False,
-        }
-
-        headers = {
-            "Authorization": f"Bearer {self.nano_banana_api_key}",
-            "Content-Type": "application/json",
-        }
-
-        # Retry logic: up to 2 retries (3 total attempts)
-        max_retries = 2
-        last_error = None
-
-        for attempt in range(max_retries + 1):
-            try:
-                # Make async API request
-                async with httpx.AsyncClient(timeout=60.0) as client:
-                    response = await client.post(
-                        f"{self.nano_banana_api_base}/v1/chat/completions",
-                        headers=headers,
-                        json=payload,
-                    )
-                    response.raise_for_status()
-                    result = response.json()
-
-                # If we got here, the request succeeded, break out of retry loop
-                break
-
-            except Exception as e:
-                last_error = e
-                if attempt < max_retries:
-                    print(f"Image generation attempt {attempt + 1} failed: {e}. Retrying...")
-                    await asyncio.sleep(2)  # Wait 2 seconds before retry
-                else:
-                    print(f"Image generation failed after {max_retries + 1} attempts")
-                    raise Exception(f"Image generation failed after {max_retries + 1} attempts: {last_error}")
-
-        # Extract image from response
-        message = result["choices"][0]["message"]["content"]
-
-        # Check for base64 data URI first (most common)
-        data_match = re.search(
-            r"(data:image/[^;]+;base64,[A-Za-z0-9+/=]+)", message
+        # Generate image using consolidated async function
+        image_bytes = await generate_image_async(
+            prompt=prompt,
+            reference_images=references if references else None
         )
-        if data_match:
-            base64_data = data_match.group(1)
-            # Extract base64 content
-            header, encoded = base64_data.split(",", 1)
-            image_bytes = base64.b64decode(encoded)
 
-            # Upload to R2
-            storage.s3_client.put_object(
-                Bucket=storage.bucket_name,
-                Key=upload_key,
-                Body=image_bytes,
-                ContentType="image/png",
-            )
-            return f"{storage.public_url_base}/{upload_key}"
+        # Upload to R2
+        storage.s3_client.put_object(
+            Bucket=storage.bucket_name,
+            Key=upload_key,
+            Body=image_bytes,
+            ContentType="image/png",
+        )
 
-        # Check for markdown image format
-        md_match = re.search(r"!\[.*?\]\((https?://[^\)]+)\)", message)
-        if md_match:
-            return md_match.group(1)
-
-        raise Exception("Could not extract image from response")
+        return f"{storage.public_url_base}/{upload_key}"
 
     async def generate_character_image(
         self,
