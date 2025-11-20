@@ -10,7 +10,7 @@ from app.ai_service import get_ai_service
 logger = logging.getLogger(__name__)
 
 # TODO: Replace with proper authentication (JWT, API key, etc.)
-DEFAULT_USER_ID = "10000"  # Temporary placeholder for migration
+DEFAULT_USER_ID = "a1111111-1111-1111-1111-111111111111"  # Demo user UUID
 
 
 def get_drama_repository() -> DramaRepository:

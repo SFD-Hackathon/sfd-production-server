@@ -82,7 +82,7 @@ class HierarchicalDAGExecutor:
     def __init__(
         self,
         drama: Drama,
-        user_id: str = "10000",
+        user_id: str = "a1111111-1111-1111-1111-111111111111",
         project_name: str = None,
         job_repository: JobRepository = None
     ):
@@ -90,7 +90,7 @@ class HierarchicalDAGExecutor:
 
         Args:
             drama: Drama model instance
-            user_id: User ID for database records and R2 uploads (default: "10000")
+            user_id: User ID for database records and R2 uploads (default: demo user UUID)
             project_name: Project name for R2 uploads (defaults to drama_id)
             job_repository: Job repository instance (creates new if not provided)
         """
