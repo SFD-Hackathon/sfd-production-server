@@ -37,6 +37,18 @@ class Episode:
 
 
 @strawberry.type
+class DramaSummary:
+    """Lightweight drama summary from index (fast)"""
+    id: str
+    title: str
+    description: str
+    premise: str
+    url: Optional[str] = None
+    createdAt: str = strawberry.field(name="createdAt")
+    updatedAt: str = strawberry.field(name="updatedAt")
+
+
+@strawberry.type
 class Drama:
     id: str
     title: str
@@ -108,46 +120,68 @@ class Query:
         )
 
     @strawberry.field
-    async def dramas(self) -> List[Drama]:
-        """Get all dramas"""
-        drama_ids = await storage.list_dramas()
-        dramas = []
+    async def drama_summaries(self, limit: int = 100) -> List[DramaSummary]:
+        """Get drama summaries from index (fast, lightweight)"""
+        summaries, _ = await storage.list_drama_summaries(limit=limit)
 
-        for drama_id in drama_ids:
-            drama_pydantic = await storage.get_drama(drama_id)
-            if drama_pydantic:
-                dramas.append(
-                    Drama(
-                        id=drama_pydantic.id,
-                        title=drama_pydantic.title,
-                        description=drama_pydantic.description,
-                        premise=drama_pydantic.premise,
-                        url=drama_pydantic.url,
-                        characters=[
-                            Character(
-                                id=char.id,
-                                name=char.name,
-                                description=char.description,
-                                gender=char.gender,
-                                voice_description=char.voice_description,
-                                main=char.main,
-                                url=char.url,
+        return [
+            DramaSummary(
+                id=summary["id"],
+                title=summary["title"],
+                description=summary["description"],
+                premise=summary["premise"],
+                url=summary.get("url"),
+                createdAt=summary["created_at"],
+                updatedAt=summary["updated_at"],
+            )
+            for summary in summaries
+        ]
+
+    @strawberry.field
+    async def dramas(self, limit: int = 100) -> List[Drama]:
+        """Get all dramas with full details (slower, fetches from R2)"""
+        drama_list, _ = await storage.list_dramas(limit=limit)
+
+        return [
+            Drama(
+                id=drama_pydantic.id,
+                title=drama_pydantic.title,
+                description=drama_pydantic.description,
+                premise=drama_pydantic.premise,
+                url=drama_pydantic.url,
+                characters=[
+                    Character(
+                        id=char.id,
+                        name=char.name,
+                        description=char.description,
+                        gender=char.gender,
+                        voice_description=char.voice_description,
+                        main=char.main,
+                        url=char.url,
+                    )
+                    for char in drama_pydantic.characters
+                ],
+                episodes=[
+                    Episode(
+                        id=ep.id,
+                        title=ep.title,
+                        description=ep.description,
+                        url=ep.url,
+                        scenes=[
+                            Scene(
+                                id=scene.id,
+                                description=scene.description,
+                                imageUrl=scene.image_url,
+                                videoUrl=scene.video_url,
                             )
-                            for char in drama_pydantic.characters
-                        ],
-                        episodes=[
-                            Episode(
-                                id=ep.id,
-                                title=ep.title,
-                                description=ep.description,
-                                url=ep.url,
-                            )
-                            for ep in drama_pydantic.episodes
+                            for scene in ep.scenes
                         ],
                     )
-                )
-
-        return dramas
+                    for ep in drama_pydantic.episodes
+                ],
+            )
+            for drama_pydantic in drama_list
+        ]
 
 
 

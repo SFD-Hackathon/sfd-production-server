@@ -270,6 +270,47 @@ class R2Storage:
             print(f"Error deleting drama {drama_id}: {e}")
             return False
 
+    async def list_drama_summaries(self, limit: int = 100, cursor: Optional[str] = None) -> tuple[List[Dict[str, Any]], Optional[str]]:
+        """
+        List drama summaries from index (fast, lightweight)
+
+        Returns basic drama info from index without fetching full drama objects.
+        Much faster than list_dramas() when you only need id, title, description, etc.
+
+        Args:
+            limit: Maximum number of dramas to return
+            cursor: Pagination cursor (offset as string)
+
+        Returns:
+            Tuple of (list of drama summary dicts, next cursor)
+        """
+        try:
+            # Read index
+            index = await self._read_index()
+
+            # Convert index to sorted list (by updated_at descending)
+            drama_entries = sorted(
+                index.values(),
+                key=lambda x: x.get("updated_at", ""),
+                reverse=True
+            )
+
+            # Parse cursor (offset)
+            offset = int(cursor) if cursor else 0
+
+            # Slice for pagination
+            page_entries = drama_entries[offset:offset + limit]
+
+            # Calculate next cursor
+            next_offset = offset + len(page_entries)
+            next_cursor = str(next_offset) if next_offset < len(drama_entries) else None
+
+            return page_entries, next_cursor
+
+        except Exception as e:
+            print(f"Error listing drama summaries from index: {e}")
+            return [], None
+
     async def list_dramas(self, limit: int = 100, cursor: Optional[str] = None) -> tuple[List[Drama], Optional[str]]:
         """
         List dramas with pagination using index for fast retrieval
