@@ -14,7 +14,7 @@ import asyncio
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
-from app.config import GEMINI_API_KEY, GEMINI_API_BASE, MAX_RETRIES, NANO_BANANA_API_KEY
+from app.config import MAX_RETRIES, NANO_BANANA_API_KEY, NANO_BANANA_API_BASE
 
 
 def generate_image(prompt: str, output_path: str, reference_images: list = None, max_retries: int = None):
@@ -96,17 +96,13 @@ def _generate_image_single_attempt(prompt: str, output_path: str, reference_imag
         "stream": False
     }
 
-    # Use appropriate API key based on endpoint
-    # t8star.cn requires NANO_BANANA_API_KEY, official Google Gemini uses GEMINI_API_KEY
-    api_key = NANO_BANANA_API_KEY if "t8star" in GEMINI_API_BASE else GEMINI_API_KEY
-
     headers = {
-        "Authorization": f"Bearer {api_key}",
+        "Authorization": f"Bearer {NANO_BANANA_API_KEY}",
         "Content-Type": "application/json"
     }
 
     response = requests.post(
-        f"{GEMINI_API_BASE}/v1/chat/completions",
+        f"{NANO_BANANA_API_BASE}/v1/chat/completions",
         headers=headers,
         json=payload,
         timeout=60
@@ -215,19 +211,15 @@ async def _generate_image_async_single_attempt(
         "stream": False,
     }
 
-    # Use appropriate API key based on endpoint
-    # t8star.cn requires NANO_BANANA_API_KEY, official Google Gemini uses GEMINI_API_KEY
-    api_key = NANO_BANANA_API_KEY if "t8star" in GEMINI_API_BASE else GEMINI_API_KEY
-
     headers = {
-        "Authorization": f"Bearer {api_key}",
+        "Authorization": f"Bearer {NANO_BANANA_API_KEY}",
         "Content-Type": "application/json",
     }
 
     # Make async API request
     async with httpx.AsyncClient(timeout=60.0) as client:
         response = await client.post(
-            f"{GEMINI_API_BASE}/v1/chat/completions",
+            f"{NANO_BANANA_API_BASE}/v1/chat/completions",
             headers=headers,
             json=payload
         )

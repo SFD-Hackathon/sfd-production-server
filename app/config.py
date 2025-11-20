@@ -22,10 +22,9 @@ else:
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GPT_MODEL = os.getenv("GPT_MODEL", "gpt-5")
 
-# Google Gemini API (for drama generation and image generation)
+# Google Gemini API (for drama structure generation only)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_DRAMA_MODEL = os.getenv("GEMINI_DRAMA_MODEL", "gemini-3-pro-preview")
-GEMINI_API_BASE = os.getenv("GEMINI_API_BASE", "https://ai.t8star.cn")
 
 # Nano Banana API (for image generation via t8star.cn)
 NANO_BANANA_API_KEY = os.getenv("NANO_BANANA_API_KEY")
