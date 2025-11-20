@@ -1,8 +1,8 @@
 """
-Job storage using JSON files for persistence.
+Job storage using R2 for persistence.
 
-Each job is stored as a separate JSON file in the JOBS_DIR directory.
-Thread-safe file operations with locking.
+Each job is stored as a separate JSON file in R2 under jobs/ prefix.
+Falls back to local file storage if R2 is not configured.
 """
 
 import os
@@ -12,26 +12,72 @@ from typing import Dict, List, Optional
 from datetime import datetime
 import fcntl
 from pathlib import Path
+import boto3
+from botocore.config import Config
 
 
 # Configuration
 JOBS_DIR = os.getenv("JOBS_DIR", "./jobs")
+USE_R2_FOR_JOBS = os.getenv("USE_R2_FOR_JOBS", "true").lower() == "true"
 
 
 class JobStorage:
-    """File-based job storage with JSON persistence."""
+    """R2-based job storage with local fallback."""
 
-    def __init__(self, jobs_dir: str = JOBS_DIR):
+    def __init__(self, jobs_dir: str = JOBS_DIR, use_r2: bool = USE_R2_FOR_JOBS):
         """Initialize job storage.
 
         Args:
-            jobs_dir: Directory to store job JSON files
+            jobs_dir: Directory to store job JSON files (fallback)
+            use_r2: Whether to use R2 storage (default: true)
         """
+        self.use_r2 = use_r2
         self.jobs_dir = Path(jobs_dir)
-        self.jobs_dir.mkdir(parents=True, exist_ok=True)
+
+        # Initialize R2 client if enabled
+        if self.use_r2:
+            try:
+                account_id = os.getenv("R2_ACCOUNT_ID")
+                access_key_id = os.getenv("R2_ACCESS_KEY_ID")
+                secret_access_key = os.getenv("R2_SECRET_ACCESS_KEY")
+                self.bucket_name = os.getenv("R2_BUCKET", "sfd-production")
+
+                if account_id and access_key_id and secret_access_key:
+                    endpoint_url = f"https://{account_id}.r2.cloudflarestorage.com"
+                    self.s3_client = boto3.client(
+                        "s3",
+                        endpoint_url=endpoint_url,
+                        aws_access_key_id=access_key_id,
+                        aws_secret_access_key=secret_access_key,
+                        config=Config(signature_version="s3v4"),
+                        region_name="auto",
+                    )
+                    print(f"✓ Job storage initialized with R2 (bucket: {self.bucket_name})")
+                else:
+                    print("⚠️  R2 credentials missing, falling back to local file storage")
+                    self.use_r2 = False
+                    self.jobs_dir.mkdir(parents=True, exist_ok=True)
+            except Exception as e:
+                print(f"⚠️  Failed to initialize R2 for jobs: {e}, falling back to local file storage")
+                self.use_r2 = False
+                self.jobs_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            print(f"✓ Job storage initialized with local files (dir: {self.jobs_dir})")
+            self.jobs_dir.mkdir(parents=True, exist_ok=True)
+
+    def _get_job_key(self, job_id: str) -> str:
+        """Get R2 key for a job.
+
+        Args:
+            job_id: Job identifier
+
+        Returns:
+            R2 key for job
+        """
+        return f"jobs/{job_id}.json"
 
     def _get_job_path(self, job_id: str) -> Path:
-        """Get the file path for a job.
+        """Get the local file path for a job.
 
         Args:
             job_id: Job identifier
@@ -136,7 +182,23 @@ class JobStorage:
         }
 
         job_path = self._get_job_path(job_id)
-        self._write_job_file(job_path, job)
+        # Save to R2 or local file
+        if self.use_r2:
+            try:
+                key = self._get_job_key(job_id)
+                self.s3_client.put_object(
+                    Bucket=self.bucket_name,
+                    Key=key,
+                    Body=json.dumps(job, indent=2),
+                    ContentType="application/json"
+                )
+            except Exception as e:
+                print(f"Error saving job to R2: {e}, falling back to local")
+                job_path = self._get_job_path(job_id)
+                self._write_job_file(job_path, job)
+        else:
+            job_path = self._get_job_path(job_id)
+            self._write_job_file(job_path, job)
 
         return job
 
@@ -149,8 +211,20 @@ class JobStorage:
         Returns:
             Job data or None if not found
         """
-        job_path = self._get_job_path(job_id)
-        return self._read_job_file(job_path)
+        if self.use_r2:
+            try:
+                key = self._get_job_key(job_id)
+                response = self.s3_client.get_object(Bucket=self.bucket_name, Key=key)
+                return json.loads(response["Body"].read())
+            except self.s3_client.exceptions.NoSuchKey:
+                return None
+            except Exception as e:
+                print(f"Error reading job from R2: {e}, trying local fallback")
+                job_path = self._get_job_path(job_id)
+                return self._read_job_file(job_path)
+        else:
+            job_path = self._get_job_path(job_id)
+            return self._read_job_file(job_path)
 
     def update_job(self, job_id: str, updates: Dict) -> Optional[Dict]:
         """Update a job.
@@ -162,8 +236,7 @@ class JobStorage:
         Returns:
             Updated job data or None if job not found
         """
-        job_path = self._get_job_path(job_id)
-        job = self._read_job_file(job_path)
+        job = self.get_job(job_id)
 
         if job is None:
             return None
@@ -171,8 +244,23 @@ class JobStorage:
         # Update fields
         job.update(updates)
 
-        # Write back
-        self._write_job_file(job_path, job)
+        # Save updated job
+        if self.use_r2:
+            try:
+                key = self._get_job_key(job_id)
+                self.s3_client.put_object(
+                    Bucket=self.bucket_name,
+                    Key=key,
+                    Body=json.dumps(job, indent=2),
+                    ContentType="application/json"
+                )
+            except Exception as e:
+                print(f"Error updating job in R2: {e}, falling back to local")
+                job_path = self._get_job_path(job_id)
+                self._write_job_file(job_path, job)
+        else:
+            job_path = self._get_job_path(job_id)
+            self._write_job_file(job_path, job)
 
         return job
 
@@ -188,19 +276,60 @@ class JobStorage:
         """
         jobs = []
 
-        for job_file in self.jobs_dir.glob("*.json"):
-            job = self._read_job_file(job_file)
-            if job is None:
-                continue
+        if self.use_r2:
+            try:
+                # List all job files from R2
+                paginator = self.s3_client.get_paginator('list_objects_v2')
+                pages = paginator.paginate(Bucket=self.bucket_name, Prefix="jobs/")
 
-            # Apply filters
-            if drama_id is not None and job.get("drama_id") != drama_id:
-                continue
+                for page in pages:
+                    if "Contents" not in page:
+                        continue
 
-            if status is not None and job.get("status") != status:
-                continue
+                    for obj in page["Contents"]:
+                        if not obj["Key"].endswith(".json"):
+                            continue
 
-            jobs.append(job)
+                        try:
+                            response = self.s3_client.get_object(Bucket=self.bucket_name, Key=obj["Key"])
+                            job = json.loads(response["Body"].read())
+
+                            # Apply filters
+                            if drama_id is not None and job.get("drama_id") != drama_id:
+                                continue
+                            if status is not None and job.get("status") != status:
+                                continue
+
+                            jobs.append(job)
+                        except Exception as e:
+                            print(f"Error reading job {obj['Key']}: {e}")
+                            continue
+            except Exception as e:
+                print(f"Error listing jobs from R2: {e}, trying local fallback")
+                # Fallback to local
+                for job_file in self.jobs_dir.glob("*.json"):
+                    job = self._read_job_file(job_file)
+                    if job is None:
+                        continue
+                    if drama_id is not None and job.get("drama_id") != drama_id:
+                        continue
+                    if status is not None and job.get("status") != status:
+                        continue
+                    jobs.append(job)
+        else:
+            # Local file storage
+            for job_file in self.jobs_dir.glob("*.json"):
+                job = self._read_job_file(job_file)
+                if job is None:
+                    continue
+
+                # Apply filters
+                if drama_id is not None and job.get("drama_id") != drama_id:
+                    continue
+                if status is not None and job.get("status") != status:
+                    continue
+
+                jobs.append(job)
 
         # Sort by created_at
         jobs.sort(key=lambda x: x.get("created_at", ""), reverse=True)
