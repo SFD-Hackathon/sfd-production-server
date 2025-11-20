@@ -1,7 +1,7 @@
 """
 Image generation using Gemini API.
 
-Separate module to avoid circular imports between asset_api and generation_dag_engine.
+Separate module to avoid circular imports with hierarchical_dag_engine.
 Provides both sync and async interfaces with retry logic and R2 upload support.
 """
 
@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any
 
 from app.config import MAX_RETRIES, NANO_BANANA_API_KEY, NANO_BANANA_API_BASE
+from app import system_prompts
 
 
 def generate_image(prompt: str, output_path: str, reference_images: list = None, max_retries: int = None):
@@ -52,8 +53,8 @@ def generate_image(prompt: str, output_path: str, reference_images: list = None,
 
 
 def _generate_image_single_attempt(prompt: str, output_path: str, reference_images: list = None):
-    # Build prompt
-    full_prompt = f"CRITICAL REQUIREMENT: STRICT VERTICAL PORTRAIT FORMAT - 9:16 aspect ratio (1080x1920 pixels). The image MUST be taller than it is wide. Vertical orientation is MANDATORY.\n\nIMAGE CONTENT: {prompt}\n\nSTYLE: Anime style, cartoon illustration, vibrant colors, clean lines."
+    # Build prompt using centralized system_prompts module
+    full_prompt = system_prompts.get_generic_image_prompt(prompt)
 
     # Build request - convert reference images to base64 if provided
     if reference_images:
@@ -193,8 +194,8 @@ async def _generate_image_async_single_attempt(
     reference_images: Optional[List[str]] = None
 ) -> bytes:
     """Single async attempt to generate image"""
-    # Build full prompt with vertical format requirement
-    full_prompt = f"CRITICAL REQUIREMENT: STRICT VERTICAL PORTRAIT FORMAT - 9:16 aspect ratio (1080x1920 pixels). The image MUST be taller than it is wide. Vertical orientation is MANDATORY.\n\nIMAGE CONTENT: {prompt}\n\nSTYLE: Anime style, cartoon illustration, vibrant colors, clean lines."
+    # Build full prompt using centralized system_prompts module
+    full_prompt = system_prompts.get_generic_image_prompt(prompt)
 
     # Build request content
     content = [{"type": "text", "text": full_prompt}]
