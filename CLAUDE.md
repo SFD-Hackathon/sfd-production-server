@@ -32,14 +32,25 @@ uvicorn main:app --reload --port 8000
 ```bash
 # Install test dependencies
 pip install -r test-requirements.txt
+pip install pytest pytest-asyncio
 
-# Run tests (requires server running in another terminal)
+# Provider tests (isolated, no server needed - RECOMMENDED for debugging)
+pytest tests/test_providers.py -v -s  # All provider tests
+pytest tests/test_providers.py::TestGeminiProvider -v -s  # Gemini only
+pytest tests/test_providers.py -v -s -m "not slow"  # Skip video tests
+
+# Integration tests (requires server running in another terminal)
 pytest tests/test_generation.py -v -s  # Full hierarchical DAG tests
 python tests/test_api.py              # Basic API tests
 python tests/test_drama_create.py     # Drama creation tests
 
-# See TESTING.md for detailed test guide
+# See tests/README.md for detailed test guide
 ```
+
+**Testing Strategy:**
+1. **Provider tests first** - If API calls fail, test providers in isolation
+2. **Integration tests second** - Test full workflow with server running
+3. **Use provider tests to debug** - Faster feedback loop, isolates issues
 
 ### Drama Viewer (Debugging UI)
 ```bash
@@ -58,6 +69,31 @@ pip install black isort
 black .
 isort .
 ```
+
+### Compile Check (IMPORTANT - Avoid Import Errors)
+**ALWAYS run compile check before committing to catch missing imports and syntax errors:**
+
+```bash
+# Check specific file
+python -m py_compile app/providers/gemini_provider.py
+
+# Check specific module (includes import validation)
+python -c "from app.providers.gemini_provider import GeminiProvider"
+
+# Check all Python files in a directory
+find app -name "*.py" -exec python -m py_compile {} \;
+
+# Check if server can start (validates all imports)
+python -c "from main import app; print('✓ All imports valid')"
+```
+
+**Common import errors to watch for:**
+- Missing `import logging` when using `logger`
+- Missing model imports when using type hints
+- Circular imports between modules
+- Missing third-party package imports
+
+**Best practice:** Add compile check to pre-commit hook or run manually before git push.
 
 ## High-Level Architecture
 
