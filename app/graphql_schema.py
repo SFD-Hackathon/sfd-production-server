@@ -1,13 +1,38 @@
 """GraphQL schema for Drama API using Strawberry"""
 
 import strawberry
-from typing import List, Optional
+from typing import List, Optional, Any
 from app.models import Drama as DramaPydantic, Character as CharacterPydantic, Episode as EpisodePydantic, Scene as ScenePydantic
 from app.storage import storage
 from app.ai_service import get_ai_service
+from app.job_storage import get_storage as get_job_storage
 
 
 # GraphQL Types (converted from Pydantic models)
+@strawberry.type
+class Job:
+    """Job status for asset generation"""
+    jobId: str = strawberry.field(name="jobId")
+    dramaId: str = strawberry.field(name="dramaId")
+    assetId: Optional[str] = strawberry.field(default=None, name="assetId")
+    type: str
+    status: str
+    prompt: Optional[str] = None
+    r2Url: Optional[str] = strawberry.field(default=None, name="r2Url")
+    createdAt: str = strawberry.field(name="createdAt")
+    startedAt: Optional[str] = strawberry.field(default=None, name="startedAt")
+    completedAt: Optional[str] = strawberry.field(default=None, name="completedAt")
+    error: Optional[str] = None
+
+    # Hierarchical job fields
+    parentJobId: Optional[str] = strawberry.field(default=None, name="parentJobId")
+    childJobs: Optional[List[str]] = strawberry.field(default=None, name="childJobs")
+    totalJobs: Optional[int] = strawberry.field(default=None, name="totalJobs")
+    completedJobs: Optional[int] = strawberry.field(default=None, name="completedJobs")
+    failedJobs: Optional[int] = strawberry.field(default=None, name="failedJobs")
+    runningJobs: Optional[int] = strawberry.field(default=None, name="runningJobs")
+
+
 @strawberry.type
 class Character:
     id: str
@@ -183,6 +208,63 @@ class Query:
             for drama_pydantic in drama_list
         ]
 
+    @strawberry.field
+    async def job(self, id: str) -> Optional[Job]:
+        """Get job status by job ID"""
+        job_storage = get_job_storage()
+        job_data = job_storage.get_job(id)
+
+        if not job_data:
+            return None
+
+        return Job(
+            jobId=job_data["job_id"],
+            dramaId=job_data.get("drama_id", ""),
+            assetId=job_data.get("asset_id"),
+            type=job_data.get("type", job_data.get("job_type", "unknown")),
+            status=job_data["status"],
+            prompt=job_data.get("prompt"),
+            r2Url=job_data.get("r2_url"),
+            createdAt=job_data["created_at"],
+            startedAt=job_data.get("started_at"),
+            completedAt=job_data.get("completed_at"),
+            error=job_data.get("error"),
+            parentJobId=job_data.get("parent_job_id"),
+            childJobs=job_data.get("child_jobs"),
+            totalJobs=job_data.get("total_jobs"),
+            completedJobs=job_data.get("completed_jobs"),
+            failedJobs=job_data.get("failed_jobs"),
+            runningJobs=job_data.get("running_jobs"),
+        )
+
+    @strawberry.field
+    async def jobs(self, drama_id: str, status: Optional[str] = None) -> List[Job]:
+        """Get all jobs for a drama, optionally filtered by status"""
+        job_storage = get_job_storage()
+        jobs_data = job_storage.list_jobs(drama_id=drama_id, status=status)
+
+        return [
+            Job(
+                jobId=job_data["job_id"],
+                dramaId=job_data.get("drama_id", ""),
+                assetId=job_data.get("asset_id"),
+                type=job_data.get("type", job_data.get("job_type", "unknown")),
+                status=job_data["status"],
+                prompt=job_data.get("prompt"),
+                r2Url=job_data.get("r2_url"),
+                createdAt=job_data["created_at"],
+                startedAt=job_data.get("started_at"),
+                completedAt=job_data.get("completed_at"),
+                error=job_data.get("error"),
+                parentJobId=job_data.get("parent_job_id"),
+                childJobs=job_data.get("child_jobs"),
+                totalJobs=job_data.get("total_jobs"),
+                completedJobs=job_data.get("completed_jobs"),
+                failedJobs=job_data.get("failed_jobs"),
+                runningJobs=job_data.get("running_jobs"),
+            )
+            for job_data in jobs_data
+        ]
 
 
 # Mutation type
