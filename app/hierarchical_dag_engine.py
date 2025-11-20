@@ -21,7 +21,7 @@ import asyncio
 import threading
 
 from app.models import Drama, Character, Episode, Scene, Asset, AssetKind
-from app.job_storage import get_storage, JobStorage
+from app.dal import get_supabase_client, JobRepository
 from app.video_generation import generate_video_sora
 from app.image_generation import generate_image
 from app.asset_library import AssetLibrary
@@ -84,20 +84,20 @@ class HierarchicalDAGExecutor:
         drama: Drama,
         user_id: str = "10000",
         project_name: str = None,
-        storage: JobStorage = None
+        job_repository: JobRepository = None
     ):
         """Initialize hierarchical DAG executor.
 
         Args:
             drama: Drama model instance
-            user_id: User ID for R2 uploads (default: "10000")
+            user_id: User ID for database records and R2 uploads (default: "10000")
             project_name: Project name for R2 uploads (defaults to drama_id)
-            storage: Job storage instance (uses singleton if not provided)
+            job_repository: Job repository instance (creates new if not provided)
         """
         self.drama = drama
         self.user_id = user_id
         self.project_name = project_name or drama.id
-        self.storage = storage or get_storage()
+        self.job_repository = job_repository or JobRepository(get_supabase_client())
         self.dag_id = f"dag_{drama.id}"
         self.parent_job_id = None
         self.nodes = {}  # Map node_id -> DAGNode
@@ -274,7 +274,7 @@ class HierarchicalDAGExecutor:
 
         return levels
 
-    def get_or_create_jobs(self, resume: bool = False) -> Dict[str, Dict]:
+    async def get_or_create_jobs(self, resume: bool = False) -> Dict[str, Dict]:
         """Get existing jobs or create new ones for all nodes.
 
         Args:
@@ -285,12 +285,14 @@ class HierarchicalDAGExecutor:
         """
         # Create parent job if needed
         if not resume or not self.parent_job_id:
-            parent_job = self.storage.create_parent_job(
-                drama_id=self.drama.id,
-                title=self.drama.title,
+            # Map job types to backend enum values
+            parent_job = await self.job_repository.create_job(
                 user_id=self.user_id,
-                project_name=self.project_name,
-                metadata=self.drama.metadata or {}
+                drama_id=self.drama.id,
+                job_id=f"job_drama_{self.drama.id[:20]}",
+                job_type="generate_drama",  # Parent job type
+                total_jobs=len(self.nodes),
+                prompt=self.drama.premise if hasattr(self.drama, 'premise') else self.drama.title,
             )
             self.parent_job_id = parent_job["job_id"]
             logger.info(f"Created parent job: {self.parent_job_id}")
@@ -299,7 +301,7 @@ class HierarchicalDAGExecutor:
 
         # Get existing jobs by entity IDs
         entity_ids = [node.entity_id for node in self.nodes.values()]
-        existing_jobs_by_asset_id = self.storage.get_jobs_by_asset_ids(entity_ids)
+        existing_jobs_by_asset_id = await self.job_repository.get_jobs_by_asset_ids(entity_ids)
 
         # Create or get jobs for each node
         jobs = {}
@@ -312,50 +314,41 @@ class HierarchicalDAGExecutor:
                 jobs[node_id] = job
                 child_job_ids.append(job["job_id"])
             else:
-                # Determine job type based on node type
+                # Determine job type based on node type (map to backend enum)
                 if node.node_type in ["character", "character_asset", "scene"]:
-                    job_type = "image"
+                    job_type = "generate_image"
                 elif node.node_type == "scene_asset":
                     # Check if it's image or video
                     asset_kind = node.metadata.get("asset_kind")
                     if asset_kind == "video" or asset_kind == AssetKind.video:
-                        job_type = "video"
+                        job_type = "generate_video"
                     else:
-                        job_type = "image"
+                        job_type = "generate_image"
                 elif node.node_type == "episode":
-                    job_type = "episode"  # Episode generation (placeholder)
+                    job_type = "generate_drama"  # Episode generation (placeholder)
                 else:
-                    job_type = "unknown"
+                    job_type = "generate_image"  # Default
 
                 # Create new job
-                job = self.storage.create_job(
+                job = await self.job_repository.create_job(
+                    user_id=self.user_id,
                     drama_id=self.drama.id,
-                    asset_id=node.entity_id,
+                    job_id=f"job_{node.entity_id}",
                     job_type=job_type,
+                    asset_id=node.entity_id,
+                    parent_job_id=self.parent_job_id,
                     prompt=node.prompt or "",
-                    depends_on=[self.nodes[dep_id].entity_id for dep_id in node.dependencies if dep_id in self.nodes],
-                    metadata={
-                        "node_id": node_id,
-                        "node_type": node.node_type,
-                        "hierarchy_level": node.hierarchy_level,
-                        **node.metadata
-                    },
-                    parent_job_id=self.parent_job_id
                 )
                 jobs[node_id] = job
                 child_job_ids.append(job["job_id"])
 
-        # Update parent job with child job IDs
-        self.storage.update_job(self.parent_job_id, {
-            "child_jobs": child_job_ids,
-            "total_jobs": len(child_job_ids),
-            "pending_jobs": len(child_job_ids)
-        })
+        # Update parent job with total count
+        await self.job_repository.update_parent_job_progress(self.parent_job_id)
 
         self.jobs = jobs
         return jobs
 
-    def execute_node(self, node: DAGNode, job: Dict, dependency_results: Dict[str, Dict]) -> Dict:
+    async def execute_node(self, node: DAGNode, job: Dict, dependency_results: Dict[str, Dict]) -> Dict:
         """Execute generation for a single node.
 
         Args:
@@ -368,15 +361,12 @@ class HierarchicalDAGExecutor:
         """
         job_id = job["job_id"]
 
-        # Update job to running
-        self.storage.update_job(job_id, {
-            "status": "running",
-            "started_at": datetime.utcnow().isoformat()
-        })
+        # Update job to processing (running)
+        await self.job_repository.update_job_status(job_id, "processing")
 
         # Update parent job statistics
         if self.parent_job_id:
-            self.storage.update_parent_job_stats(self.parent_job_id)
+            await self.job_repository.update_parent_job_progress(self.parent_job_id)
 
         try:
             result_path = None
@@ -400,21 +390,18 @@ class HierarchicalDAGExecutor:
                 raise DAGExecutionError(f"Unknown node type: {node.node_type}")
 
             # Update job to completed
-            updated_job = self.storage.update_job(job_id, {
-                "status": "completed",
-                "completed_at": datetime.utcnow().isoformat(),
-                "result_path": result_path,
-                "r2_url": r2_url,
-                "r2_key": r2_key,
-                "asset_metadata": asset_metadata
-            })
+            updated_job = await self.job_repository.update_job_status(
+                job_id,
+                "completed",
+                r2_url=r2_url
+            )
 
             # Update drama model with results
             self._update_drama_model(node, result_path, r2_url)
 
             # Update parent job statistics
             if self.parent_job_id:
-                self.storage.update_parent_job_stats(self.parent_job_id)
+                await self.job_repository.update_parent_job_progress(self.parent_job_id)
 
             logger.info(f"Completed node {node.node_id}: {result_path}")
             return updated_job
@@ -424,15 +411,15 @@ class HierarchicalDAGExecutor:
             logger.error(f"Failed to generate node {node.node_id}: {error_msg}")
 
             # Update job to failed
-            updated_job = self.storage.update_job(job_id, {
-                "status": "failed",
-                "completed_at": datetime.utcnow().isoformat(),
-                "error": error_msg
-            })
+            updated_job = await self.job_repository.update_job_status(
+                job_id,
+                "failed",
+                error=error_msg
+            )
 
             # Update parent job statistics
             if self.parent_job_id:
-                self.storage.update_parent_job_stats(self.parent_job_id)
+                await self.job_repository.update_parent_job_progress(self.parent_job_id)
 
             return updated_job
 
@@ -685,8 +672,8 @@ class HierarchicalDAGExecutor:
                         asset.url = r2_url
                         return
 
-    def execute_level(self, level_nodes: List[DAGNode], dependency_results: Dict[str, Dict]) -> List[Dict]:
-        """Execute all nodes in a level in parallel.
+    async def execute_level(self, level_nodes: List[DAGNode], dependency_results: Dict[str, Dict]) -> List[Dict]:
+        """Execute all nodes in a level in parallel using asyncio.
 
         Args:
             level_nodes: List of nodes to execute
@@ -695,32 +682,26 @@ class HierarchicalDAGExecutor:
         Returns:
             List of updated job data
         """
-        results = []
-
-        def execute_wrapper(node):
+        async def execute_wrapper(node):
             try:
                 job = self.jobs[node.node_id]
-                updated_job = self.execute_node(node, job, dependency_results)
-                results.append(updated_job)
+                updated_job = await self.execute_node(node, job, dependency_results)
                 # Update jobs dict and dependency results
                 self.jobs[node.node_id] = updated_job
                 dependency_results[node.node_id] = updated_job
+                return updated_job
             except Exception as e:
                 logger.error(f"Error executing node {node.node_id}: {e}")
+                return None
 
-        threads = []
-        for node in level_nodes:
-            thread = threading.Thread(target=execute_wrapper, args=(node,))
-            thread.start()
-            threads.append(thread)
+        # Execute all nodes in parallel using asyncio.gather
+        tasks = [execute_wrapper(node) for node in level_nodes]
+        results = await asyncio.gather(*tasks, return_exceptions=False)
 
-        # Wait for all threads to complete
-        for thread in threads:
-            thread.join()
+        # Filter out None results
+        return [r for r in results if r is not None]
 
-        return results
-
-    def execute_dag(self, resume: bool = False) -> Dict:
+    async def execute_dag(self, resume: bool = False) -> Dict:
         """Execute the complete hierarchical DAG.
 
         Args:
@@ -739,7 +720,7 @@ class HierarchicalDAGExecutor:
         levels = self.topological_sort(dag)
 
         # Get or create jobs
-        self.get_or_create_jobs(resume=resume)
+        await self.get_or_create_jobs(resume=resume)
 
         # Track dependency results
         dependency_results = {}
@@ -763,7 +744,7 @@ class HierarchicalDAGExecutor:
                 continue
 
             # Execute level in parallel
-            level_results = self.execute_level(level_nodes, dependency_results)
+            level_results = await self.execute_level(level_nodes, dependency_results)
 
         # Get final status
         return self.get_execution_status()

@@ -35,6 +35,14 @@ SORA_API_KEY = os.getenv("SORA_API_KEY")
 SORA_API_BASE = os.getenv("SORA_API_BASE", "https://ai.t8star.cn")
 
 # =============================================================================
+# Supabase Configuration
+# =============================================================================
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")  # Service role key (bypasses RLS)
+SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")  # Public anon key (for client apps)
+
+# =============================================================================
 # R2 Storage Configuration
 # =============================================================================
 

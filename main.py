@@ -29,9 +29,27 @@ async def lifespan(app: FastAPI):
     print(f"🚀 Drama API Server v{VERSION} starting...")
     print(f"📦 R2 Bucket: {os.getenv('R2_BUCKET', 'sfd-production')}")
     print(f"🤖 GPT Model: {os.getenv('GPT_MODEL', 'gpt-5')}")
+
+    # Initialize Supabase client
+    try:
+        from app.dal.supabase_client import SupabaseClient, check_supabase_connection
+        SupabaseClient.initialize()
+        if check_supabase_connection():
+            print("✅ Supabase client initialized and connected")
+        else:
+            print("⚠️  Supabase client initialized but connection test failed")
+    except Exception as e:
+        print(f"❌ Failed to initialize Supabase client: {e}")
+        print("   Continuing without Supabase (using legacy storage)")
+
     yield
     # Shutdown
     print("👋 Drama API Server shutting down...")
+    try:
+        from app.dal.supabase_client import SupabaseClient
+        SupabaseClient.close()
+    except:
+        pass
 
 
 # Create FastAPI app

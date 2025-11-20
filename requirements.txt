@@ -10,3 +10,5 @@ requests==2.32.3
 gunicorn==21.2.0
 strawberry-graphql[fastapi]==0.243.0
 streamlit==1.40.2
+supabase==2.10.0
+postgrest==0.18.0
