@@ -2,7 +2,7 @@
 
 import strawberry
 from typing import List, Optional
-from app.models import Drama as DramaPydantic, Character as CharacterPydantic, Episode as EpisodePydantic
+from app.models import Drama as DramaPydantic, Character as CharacterPydantic, Episode as EpisodePydantic, Scene as ScenePydantic
 from app.storage import storage
 from app.ai_service import get_ai_service
 
@@ -20,11 +20,20 @@ class Character:
 
 
 @strawberry.type
+class Scene:
+    id: str
+    description: str
+    imageUrl: Optional[str] = strawberry.field(default=None, name="imageUrl")
+    videoUrl: Optional[str] = strawberry.field(default=None, name="videoUrl")
+
+
+@strawberry.type
 class Episode:
     id: str
     title: str
     description: str
     url: Optional[str] = None
+    scenes: List[Scene]
 
 
 @strawberry.type
@@ -84,6 +93,15 @@ class Query:
                     title=ep.title,
                     description=ep.description,
                     url=ep.url,
+                    scenes=[
+                        Scene(
+                            id=scene.id,
+                            description=scene.description,
+                            imageUrl=scene.image_url,
+                            videoUrl=scene.video_url,
+                        )
+                        for scene in ep.scenes
+                    ],
                 )
                 for ep in drama_pydantic.episodes
             ],
@@ -220,6 +238,15 @@ class Mutation:
                     title=ep.title,
                     description=ep.description,
                     url=ep.url,
+                    scenes=[
+                        Scene(
+                            id=scene.id,
+                            description=scene.description,
+                            imageUrl=scene.image_url,
+                            videoUrl=scene.video_url,
+                        )
+                        for scene in ep.scenes
+                    ],
                 )
                 for ep in drama_pydantic.episodes
             ],
