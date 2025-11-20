@@ -13,6 +13,7 @@ from app.models import (
     Drama,
     DramaLite,
     Episode,
+    EpisodeLite,
     Scene,
     Character,
     Asset,
@@ -588,6 +589,116 @@ IMPORTANT: Use the EXACT same dimensions and aspect ratio as the reference image
         drama.assets.append(asset)
 
         return public_url
+
+    async def generate_episode_scenes_spec(
+        self,
+        drama: Drama,
+        episode: Episode,
+        model: str = "gpt-5"
+    ) -> EpisodeLite:
+        """
+        Generate detailed scene specifications for an episode using existing EpisodeLite model.
+
+        Creates 3-5 scenes with detailed:
+        - Scene descriptions
+        - Storyboard image prompts
+        - Video clip prompts
+        - Character dependencies
+
+        Considers overall drama context and previous episodes for continuity.
+
+        Args:
+            drama: Full drama object with all episodes and characters
+            episode: The episode to generate specs for
+            model: AI model to use
+
+        Returns:
+            EpisodeLite with populated scenes array containing detailed asset specifications
+        """
+        # Build context
+        character_list = "\n".join([
+            f"- {char.name} (ID: {char.id}): {char.description[:100]}..."
+            for char in drama.characters
+        ])
+
+        # Previous episodes context
+        episode_index = next((i for i, ep in enumerate(drama.episodes) if ep.id == episode.id), -1)
+        prev_episodes_summary = ""
+        if episode_index > 0:
+            prev_episodes = drama.episodes[:episode_index]
+            prev_episodes_summary = "\n".join([
+                f"Ep{i+1} '{ep.title}': {ep.description[:120]}..."
+                for i, ep in enumerate(prev_episodes)
+            ])
+
+        # System prompt
+        system_prompt = f"""You are a visual storytelling director creating detailed scene breakdowns.
+
+DRAMA: {drama.title}
+{drama.description}
+
+CHARACTERS (use IDs in depends_on):
+{character_list}
+
+PREVIOUS EPISODES:
+{prev_episodes_summary or "This is the first episode."}
+
+CURRENT EPISODE: {episode.title}
+{episode.description}
+
+Create 3-5 cinematic scenes with 2 assets each (image + video):
+- Scene IDs: scene_{episode.id}_01, scene_{episode.id}_02, etc
+- Each scene has exactly 2 assets:
+  * Asset 1 (image): Storyboard prompt - composition, framing, mood
+  * Asset 2 (video): Video clip prompt - 10-15sec action, camera movement
+- Use character IDs in asset depends_on (max 3 per scene)
+- Ensure visual continuity across scenes"""
+
+        user_prompt = f"Generate detailed scene specs for '{episode.title}'."
+
+        # Use structured output
+        if model.startswith("gpt"):
+            return await self._generate_episode_spec_with_gpt(system_prompt, user_prompt, episode.id)
+        else:
+            return await self._generate_episode_spec_with_gemini(system_prompt, user_prompt, episode.id)
+
+    async def _generate_episode_spec_with_gpt(self, system_prompt: str, user_prompt: str, episode_id: str) -> EpisodeLite:
+        """Generate using GPT structured output"""
+        if not self.openai_client:
+            raise ValueError("OpenAI client not initialized")
+
+        response = await self.openai_client.beta.chat.completions.parse(
+            model=self.gpt_model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            response_format=EpisodeLite
+        )
+
+        return response.choices[0].message.parsed
+
+    async def _generate_episode_spec_with_gemini(self, system_prompt: str, user_prompt: str, episode_id: str) -> EpisodeLite:
+        """Generate using Gemini structured output"""
+        if not self.gemini_client:
+            raise ValueError("Gemini client not initialized")
+
+        full_prompt = f"{system_prompt}\n\n{user_prompt}"
+
+        response = await asyncio.to_thread(
+            lambda: self.gemini_client.models.generate_content(
+                model=self.gemini_drama_model,
+                contents=full_prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=EpisodeLite
+                )
+            )
+        )
+
+        import json
+        spec_dict = json.loads(response.text)
+        return EpisodeLite(**spec_dict)
 
     async def generate_character_audition_video(
         self,
