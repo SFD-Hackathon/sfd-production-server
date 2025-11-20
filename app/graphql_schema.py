@@ -416,7 +416,7 @@ class Query:
 class Mutation:
     @strawberry.mutation
     async def generate_character_image(self, drama_id: str, character_id: str) -> Optional[Character]:
-        """Generate image for a character"""
+        """Generate image for a character (creates a job and generates synchronously)"""
         drama_pydantic = await storage.get_drama(drama_id)
         if not drama_pydantic:
             return None
@@ -426,16 +426,50 @@ class Mutation:
         if not character:
             return None
 
-        # Generate image
-        ai_service = get_ai_service()
-        image_url = await ai_service.generate_character_image(
+        # Create job for tracking
+        job_storage = get_job_storage()
+        job = job_storage.create_job(
             drama_id=drama_id,
-            character=character,
+            asset_id=character_id,
+            job_type="image",
+            prompt=character.description,
+            metadata={
+                "character_id": character_id,
+                "name": character.name,
+                "type": "character_portrait"
+            }
         )
 
-        # Update character
-        character.url = image_url
-        await storage.save_drama(drama_pydantic)
+        # Update job to running
+        job_storage.update_job(job["job_id"], {"status": "running"})
+
+        try:
+            # Generate image
+            ai_service = get_ai_service()
+            image_url = await ai_service.generate_character_image(
+                drama_id=drama_id,
+                character=character,
+            )
+
+            # Update character
+            character.url = image_url
+            await storage.save_drama(drama_pydantic)
+
+            # Update job to completed
+            job_storage.update_job(job["job_id"], {
+                "status": "completed",
+                "r2_url": image_url,
+                "completed_at": datetime.utcnow().isoformat()
+            })
+
+        except Exception as e:
+            # Update job to failed
+            job_storage.update_job(job["job_id"], {
+                "status": "failed",
+                "error": str(e),
+                "completed_at": datetime.utcnow().isoformat()
+            })
+            raise
 
         return Character(
             id=character.id,
